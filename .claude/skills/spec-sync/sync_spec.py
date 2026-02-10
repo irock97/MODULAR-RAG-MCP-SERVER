@@ -58,7 +58,7 @@ class SpecSynchronizer:
     def __init__(self, repo_root: Path):
         self.repo_root = repo_root
         self.dev_spec_path = repo_root / "DEV_SPEC.md"
-        self.skills_dir = repo_root / ".github" / "skills" / "spec-sync"
+        self.skills_dir = repo_root / ".claude" / "skills" / "spec-sync"
         self.specs_dir = self.skills_dir / "specs"
         self.hash_file = self.skills_dir / ".spec_hash"
         self.index_file = self.skills_dir / "SPEC_INDEX.md"
@@ -316,7 +316,7 @@ def main():
     parser.add_argument('--force', action='store_true', help="Force regeneration even if hash matches")
     args = parser.parse_args()
     
-    # Detect repo root (assuming script is in .github/skills/implement-from-spec/)
+    # Detect repo root (assuming script is in .claude/skills/implement-from-spec/)
     script_dir = Path(__file__).parent
     repo_root = script_dir.parent.parent.parent
     

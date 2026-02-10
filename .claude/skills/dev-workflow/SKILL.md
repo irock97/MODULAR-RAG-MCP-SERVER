@@ -19,12 +19,17 @@ You are the **Project Manager AI** for the Modular RAG MCP Server. When the user
 
 **Before executing any pipeline stage**, activate the project's virtual environment:
 
+```bash
+# macOS / Linux (Bash/Zsh)
+source .venv/bin/activate
+```
+
 ```powershell
-# Windows PowerShell
+# Windows (PowerShell)
 .\.venv\Scripts\Activate.ps1
 ```
 
-> his step is mandatory and must be completed before invoking any sub-skill.
+> **This step is mandatory** and must be completed before invoking any sub-skill.
 
 ---
 
