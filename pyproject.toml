@@ -10,7 +10,8 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
 # For development: packages are installed from src/ directory
-packages = ["src"]
+# Using find_packages to discover all modules (mcp_server, core, ingestion, libs, observability)
+packages = ["src/mcp_server", "src/core", "src/ingestion", "src/libs", "src/observability"]
 authors = [
     {name = "Project Team"}
 ]
