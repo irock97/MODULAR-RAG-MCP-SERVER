@@ -27,7 +27,7 @@ classifiers = [
 
 # 可选依赖（按需安装）
 dependencies = [
-    # 核心依赖将在各阶段补充
+    "pyyaml>=6.0",
 ]
 
 [project.optional-dependencies]
