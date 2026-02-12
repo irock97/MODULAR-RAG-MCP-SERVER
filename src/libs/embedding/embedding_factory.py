@@ -165,12 +165,18 @@ class EmbeddingFactory:
         implementation_class = cls._providers[provider]
 
         # Build constructor arguments from settings
+        # Common kwargs for all providers
         init_kwargs: dict[str, Any] = {
             "api_key": getattr(embed_config, "api_key", None),
             "base_url": getattr(embed_config, "base_url", None),
             "model": getattr(embed_config, "model", None),
             "dimensions": getattr(embed_config, "dimensions", None),
         }
+
+        # Azure-specific kwargs
+        if provider == "azure":
+            init_kwargs["deployment"] = getattr(embed_config, "deployment", None)
+            init_kwargs["api_version"] = getattr(embed_config, "api_version", None)
 
         # Apply overrides
         for key, value in kwargs.items():
