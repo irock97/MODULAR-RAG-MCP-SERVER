@@ -210,12 +210,31 @@ else:
     append " " to task title
 ```
 
+### 2.2.1 Update Overall Progress Table (总体进度)
+
+**CRITICAL**: After updating the individual task status, you MUST also update the 📈 总体进度表.
+
+**Location in DEV_SPEC.md**: Look for section `### 📈 总体进度` or `### Overall Progress`
+
+**What to Update**:
+1. **已完成 (Completed Count)**: Increment by 1 for the task's phase
+2. **进度 (Progress %)**: Recalculate as `(已完成 / 总任务数) × 100%`
+
+**Example**:
+```markdown
+Before:
+| 阶段 A | 3 | 2 | 67% |
+
+After (when A3 completed):
+| 阶段 A | 3 | 3 | 100% |
+```
+
 ### 2.3 Step 2 Output Format
 
 **Output after updating DEV_SPEC.md**:
 ```
 ────────────────────────────────────
-DEV_SPEC.md Progress Updated
+✅ DEV_SPEC.md Progress Updated
 ────────────────────────────────────
 Task: [Task ID] [Task Name]
 Status: [ ] -> [x]
@@ -262,7 +281,7 @@ Status: [ ] -> [x]
 ════════════════════════════════════════════════════
 
 【Subject】
-feat(<module>): [Phase X.Y] implement <feature name>
+feat(Phase X.Y):implement <feature name>
 
 【Description】
 Completed DEV_SPEC.md Phase X.Y: <Task Name>
@@ -369,6 +388,7 @@ Task [Task ID] checkpoint completed!
    - Step 3.3: User must confirm before git commit
    - **NEVER skip these confirmations!**
 
-5. **Traceability**: Every checkpoint must reference the specific spec section that defined the task.
+5. **Update Both Progress Markers**: When marking a task complete, update both the individual task status and the 📈 总体进度表 (aggregate counts).
 
+6. **Traceability**: Every checkpoint must reference the specific spec section that defined the task.
 ---
