@@ -1651,7 +1651,7 @@ observability:
 | B1 | LLM 抽象接口与工厂 | [x] | 2025-02-11 | ✅ BaseLLM + LLMFactory，29 测试通过 |
 | B2 | Embedding 抽象接口与工厂 | [x] | 2025-02-11 | ✅ BaseEmbedding + EmbeddingFactory，27 测试通过 |
 | B3 | Splitter 抽象接口与工厂 | [x] | 2025-02-11 | ✅ BaseSplitter + SplitterFactory，28 测试通过 |
-| B4 | VectorStore 抽象接口与工厂 | [ ] | - | |
+| B4 | VectorStore 抽象接口与工厂 | [x] | 2025-02-11 | ✅ BaseVectorStore + VectorStoreFactory，28 测试通过 |
 | B5 | Reranker 抽象接口与工厂（含 None 回退） | [ ] | - | |
 | B6 | Evaluator 抽象接口与工厂 | [ ] | - | |
 | B7.1 | OpenAI-Compatible LLM 实现 | [ ] | - | |
@@ -1732,13 +1732,13 @@ observability:
 | 阶段 | 总任务数 | 已完成 | 进度 |
 |------|---------|--------|------|
 | 阶段 A | 3 | 3 | 100% |
-| 阶段 B | 14 | 3 | 21% |
+| 阶段 B | 14 | 4 | 29% |
 | 阶段 C | 15 | 0 | 0% |
 | 阶段 D | 7 | 0 | 0% |
 | 阶段 E | 6 | 0 | 0% |
 | 阶段 F | 5 | 0 | 0% |
 | 阶段 G | 4 | 0 | 0% |
-| **总计** | **54** | **6** | **11%** |
+| **总计** | **54** | **7** | **13%** |
 
 
 ---
@@ -1855,17 +1855,25 @@ observability:
 - **验收标准**：28 个测试全部通过，验证工厂路由与接口契约。
 - **测试方法**：`pytest -q tests/unit/test_splitter_factory.py`。
 
-### B4：VectorStore 抽象接口与工厂（先定义契约）
+### B4：VectorStore 抽象接口与工厂 ✅
 - **目标**：定义 `BaseVectorStore` 与 `VectorStoreFactory`，先不接真实 DB。
 - **修改文件**：
   - `src/libs/vector_store/base_vector_store.py`
   - `src/libs/vector_store/vector_store_factory.py`
-  - `tests/unit/test_vector_store_contract.py`
+  - `tests/unit/test_vector_store_factory.py`
 - **实现类/函数**：
-  - `BaseVectorStore.upsert(records, trace: TraceContext | None = None)`
-  - `BaseVectorStore.query(vector, top_k, filters, trace: TraceContext | None = None)`
-- **验收标准**：契约测试（contract test）约束输入输出 shape。
-- **测试方法**：`pytest -q tests/unit/test_vector_store_contract.py`。
+  - `BaseVectorStore` - 抽象基类，定义 `upsert()`、`query()`、`delete()`、`count()`、`clear()` 接口
+  - `VectorRecord` - 向量记录数据结构
+  - `QueryResult` - 查询结果数据结构
+  - `VectorStoreError`、`UnknownVectorStoreProviderError`、`VectorStoreConfigurationError` - 错误类
+  - `VectorStoreFactory` - 动态注册工厂，支持 `register()`、`create()`、`clear()` 等
+- **设计特点**：
+  - `upsert()` - 插入/更新向量记录
+  - `query()` - 查询相似向量
+  - `delete()` / `count()` / `clear()` - 删除/计数/清空
+  - 使用 `settings.vector_store.provider` 作为 provider
+- **验收标准**：28 个测试全部通过，验证工厂路由与接口契约。
+- **测试方法**：`pytest -q tests/unit/test_vector_store_factory.py`。
 
 ### B5：Reranker 抽象接口与工厂（含 None 回退）
 - **目标**：实现 `BaseReranker`、`RerankerFactory`，提供 `NoneReranker` 作为默认回退。
