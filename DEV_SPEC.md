@@ -1650,7 +1650,7 @@ observability:
 |---------|---------|------|---------|------|
 | B1 | LLM 抽象接口与工厂 | [x] | 2025-02-11 | ✅ BaseLLM + LLMFactory，29 测试通过 |
 | B2 | Embedding 抽象接口与工厂 | [x] | 2025-02-11 | ✅ BaseEmbedding + EmbeddingFactory，27 测试通过 |
-| B3 | Splitter 抽象接口与工厂 | [ ] | - | |
+| B3 | Splitter 抽象接口与工厂 | [x] | 2025-02-11 | ✅ BaseSplitter + SplitterFactory，28 测试通过 |
 | B4 | VectorStore 抽象接口与工厂 | [ ] | - | |
 | B5 | Reranker 抽象接口与工厂（含 None 回退） | [ ] | - | |
 | B6 | Evaluator 抽象接口与工厂 | [ ] | - | |
@@ -1732,13 +1732,13 @@ observability:
 | 阶段 | 总任务数 | 已完成 | 进度 |
 |------|---------|--------|------|
 | 阶段 A | 3 | 3 | 100% |
-| 阶段 B | 14 | 2 | 14% |
+| 阶段 B | 14 | 3 | 21% |
 | 阶段 C | 15 | 0 | 0% |
 | 阶段 D | 7 | 0 | 0% |
 | 阶段 E | 6 | 0 | 0% |
 | 阶段 F | 5 | 0 | 0% |
 | 阶段 G | 4 | 0 | 0% |
-| **总计** | **54** | **5** | **9%** |
+| **总计** | **54** | **6** | **11%** |
 
 
 ---
@@ -1837,16 +1837,22 @@ observability:
 - **验收标准**：27 个测试全部通过，验证工厂路由与接口契约。
 - **测试方法**：`pytest -q tests/unit/test_embedding_factory.py`。
 
-### B3：Splitter 抽象接口与工厂
+### B3：Splitter 抽象接口与工厂 ✅
 - **目标**：定义 `BaseSplitter` 与 `SplitterFactory`，支持不同切分策略（Recursive/Semantic/Fixed）。
 - **修改文件**：
   - `src/libs/splitter/base_splitter.py`
   - `src/libs/splitter/splitter_factory.py`
   - `tests/unit/test_splitter_factory.py`
 - **实现类/函数**：
-  - `BaseSplitter.split_text(text: str, trace: TraceContext | None = None) -> List[str]`
-  - `SplitterFactory.create(settings) -> BaseSplitter`
-- **验收标准**：Factory 能根据配置返回不同类型的 Splitter 实例（测试中可用 Fake 实现）。
+  - `BaseSplitter` - 抽象基类，定义 `split_text()`、`split_documents()`、`provider_name` 接口
+  - `SplitResult` - 包含 chunks 和 metadata
+  - `SplitterError`、`UnknownSplitterProviderError`、`SplitterConfigurationError` - 错误类
+  - `SplitterFactory` - 动态注册工厂，支持 `register()`、`create()`、`clear()` 等
+- **设计特点**：
+  - `split_text()` - 切分单个文本
+  - `split_documents()` - 批量切分多个文档
+  - 使用 `settings.ingestion.splitter` 作为 provider
+- **验收标准**：28 个测试全部通过，验证工厂路由与接口契约。
 - **测试方法**：`pytest -q tests/unit/test_splitter_factory.py`。
 
 ### B4：VectorStore 抽象接口与工厂（先定义契约）
