@@ -59,6 +59,7 @@ class FakeEmbedding(BaseEmbedding):
     def embed(
         self,
         texts: list[str],
+        trace: Any = None,
         **kwargs: Any
     ) -> EmbeddingResult:
         """Return fake embeddings for texts."""
@@ -70,7 +71,7 @@ class FakeEmbedding(BaseEmbedding):
             usage={"prompt_tokens": len(texts) * 10, "total_tokens": len(texts) * 10}
         )
 
-    def embed_single(self, text: str, **kwargs: Any) -> list[float]:
+    def embed_single(self, text: str, trace: Any = None, **kwargs: Any) -> list[float]:
         """Return fake embedding for single text."""
         self.call_count += 1
         return self._get_vector(0)

@@ -53,6 +53,7 @@ class FakeLLM(BaseLLM):
     def chat(
         self,
         messages: list[ChatMessage],
+        trace: Any = None,
         **kwargs: Any
     ) -> LLMResponse:
         """Return a fake response."""
@@ -76,10 +77,11 @@ class FakeLLM(BaseLLM):
     def chat_stream(
         self,
         messages: list[ChatMessage],
+        trace: Any = None,
         **kwargs: Any
     ):
         """Yield fake response chunks."""
-        response = self.chat(messages, **kwargs)
+        response = self.chat(messages, trace=trace, **kwargs)
         content = response.content
         for char in content:
             yield char

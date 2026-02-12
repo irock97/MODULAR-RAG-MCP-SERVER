@@ -12,6 +12,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any
 
+from observability.logger import TraceContext
+
 
 @dataclass
 class VectorRecord:
@@ -70,14 +72,15 @@ class BaseVectorStore(ABC):
     def upsert(
         self,
         records: list[VectorRecord],
+        trace: TraceContext | None = None,
         **kwargs: Any
     ) -> list[str]:
         """Upsert (insert or update) vectors into the store.
 
         Args:
             records: List of VectorRecord to upsert
+            trace: Tracing context for observability
             **kwargs: Additional provider-specific arguments
-                - trace: Tracing context for observability
                 - batch_size: Batch size for bulk operations
 
         Returns:
@@ -94,6 +97,7 @@ class BaseVectorStore(ABC):
         query_vector: list[float],
         top_k: int = 5,
         filters: dict[str, Any] | None = None,
+        trace: TraceContext | None = None,
         **kwargs: Any
     ) -> QueryResult:
         """Query the vector store for similar vectors.
@@ -102,6 +106,7 @@ class BaseVectorStore(ABC):
             query_vector: The query embedding vector
             top_k: Number of results to return
             filters: Metadata filters to apply
+            trace: Tracing context for observability
             **kwargs: Additional arguments
 
         Returns:
@@ -116,12 +121,14 @@ class BaseVectorStore(ABC):
     def delete(
         self,
         ids: list[str],
+        trace: TraceContext | None = None,
         **kwargs: Any
     ) -> bool:
         """Delete records from the store.
 
         Args:
             ids: List of record IDs to delete
+            trace: Tracing context for observability
             **kwargs: Additional arguments
 
         Returns:
@@ -133,10 +140,15 @@ class BaseVectorStore(ABC):
         ...
 
     @abstractmethod
-    def count(self, **kwargs: Any) -> int:
+    def count(
+        self,
+        trace: TraceContext | None = None,
+        **kwargs: Any
+    ) -> int:
         """Get the total number of records in the store.
 
         Args:
+            trace: Tracing context for observability
             **kwargs: Additional arguments
 
         Returns:
@@ -148,10 +160,15 @@ class BaseVectorStore(ABC):
         ...
 
     @abstractmethod
-    def clear(self, **kwargs: Any) -> bool:
+    def clear(
+        self,
+        trace: TraceContext | None = None,
+        **kwargs: Any
+    ) -> bool:
         """Clear all records from the store.
 
         Args:
+            trace: Tracing context for observability
             **kwargs: Additional arguments
 
         Returns:

@@ -13,6 +13,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any
 
+from observability.logger import TraceContext
+
 
 @dataclass
 class LLMResponse:
@@ -67,12 +69,14 @@ class BaseLLM(ABC):
     def chat(
         self,
         messages: list[ChatMessage],
+        trace: TraceContext | None = None,
         **kwargs: Any
     ) -> LLMResponse:
         """Send a chat request to the LLM.
 
         Args:
             messages: List of chat messages in conversation order
+            trace: Tracing context for observability
             **kwargs: Additional provider-specific arguments
                 - temperature: Sampling temperature (0.0-2.0)
                 - max_tokens: Maximum tokens to generate
@@ -89,6 +93,7 @@ class BaseLLM(ABC):
     def chat_stream(
         self,
         messages: list[ChatMessage],
+        trace: TraceContext | None = None,
         **kwargs: Any
     ):
         """Stream a chat response from the LLM.
@@ -97,6 +102,7 @@ class BaseLLM(ABC):
 
         Args:
             messages: List of chat messages
+            trace: Tracing context for observability
             **kwargs: Additional provider-specific arguments
 
         Yields:

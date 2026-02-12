@@ -54,6 +54,7 @@ class FakeVectorStore(BaseVectorStore):
     def upsert(
         self,
         records: list[VectorRecord],
+        trace: Any = None,
         **kwargs: Any
     ) -> list[str]:
         """Store records (fake implementation)."""
@@ -69,6 +70,7 @@ class FakeVectorStore(BaseVectorStore):
         query_vector: list[float],
         top_k: int = 5,
         filters: dict[str, Any] | None = None,
+        trace: Any = None,
         **kwargs: Any
     ) -> QueryResult:
         """Query records (fake implementation)."""
@@ -79,7 +81,7 @@ class FakeVectorStore(BaseVectorStore):
         metadata = [self._records[rid].metadata for rid in ids]
         return QueryResult(ids=ids, scores=scores, metadata=metadata)
 
-    def delete(self, ids: list[str], **kwargs: Any) -> bool:
+    def delete(self, ids: list[str], trace: Any = None, **kwargs: Any) -> bool:
         """Delete records (fake implementation)."""
         self.call_count += 1
         for rid in ids:
@@ -87,11 +89,11 @@ class FakeVectorStore(BaseVectorStore):
                 del self._records[rid]
         return True
 
-    def count(self, **kwargs: Any) -> int:
+    def count(self, trace: Any = None, **kwargs: Any) -> int:
         """Count records (fake implementation)."""
         return len(self._records)
 
-    def clear(self, **kwargs: Any) -> bool:
+    def clear(self, trace: Any = None, **kwargs: Any) -> bool:
         """Clear all records (fake implementation)."""
         self.call_count += 1
         self._records.clear()

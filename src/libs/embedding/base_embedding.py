@@ -11,6 +11,8 @@ Design Principles:
 from abc import ABC, abstractmethod
 from typing import Any
 
+from observability.logger import TraceContext
+
 
 class EmbeddingResult:
     """Result from an embedding operation.
@@ -65,15 +67,16 @@ class BaseEmbedding(ABC):
     def embed(
         self,
         texts: list[str],
+        trace: TraceContext | None = None,
         **kwargs: Any
     ) -> EmbeddingResult:
         """Generate embeddings for a list of texts.
 
         Args:
             texts: List of text strings to embed
+            trace: Tracing context for observability
             **kwargs: Additional provider-specific arguments
                 - dimensions: Request specific embedding dimensions
-                - trace: Tracing context for observability
 
         Returns:
             EmbeddingResult containing list of vectors
@@ -84,11 +87,17 @@ class BaseEmbedding(ABC):
         ...
 
     @abstractmethod
-    def embed_single(self, text: str, **kwargs: Any) -> list[float]:
+    def embed_single(
+        self,
+        text: str,
+        trace: TraceContext | None = None,
+        **kwargs: Any
+    ) -> list[float]:
         """Generate embedding for a single text.
 
         Args:
             text: Single text string to embed
+            trace: Tracing context for observability
             **kwargs: Additional arguments
 
         Returns:

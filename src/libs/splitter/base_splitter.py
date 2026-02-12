@@ -12,6 +12,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any
 
+from observability.logger import TraceContext
+
 
 @dataclass
 class SplitResult:
@@ -53,15 +55,20 @@ class BaseSplitter(ABC):
         ...
 
     @abstractmethod
-    def split_text(self, text: str, **kwargs: Any) -> SplitResult:
+    def split_text(
+        self,
+        text: str,
+        trace: TraceContext | None = None,
+        **kwargs: Any
+    ) -> SplitResult:
         """Split a single text into chunks.
 
         Args:
             text: The text to split
+            trace: Tracing context for observability
             **kwargs: Additional provider-specific arguments
                 - chunk_size: Maximum size of each chunk
                 - chunk_overlap: Overlap between consecutive chunks
-                - trace: Tracing context for observability
 
         Returns:
             SplitResult containing list of chunks
@@ -75,12 +82,14 @@ class BaseSplitter(ABC):
     def split_documents(
         self,
         documents: list[str],
+        trace: TraceContext | None = None,
         **kwargs: Any
     ) -> list[SplitResult]:
         """Split multiple documents.
 
         Args:
             documents: List of documents to split
+            trace: Tracing context for observability
             **kwargs: Additional arguments
 
         Returns:

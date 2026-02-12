@@ -100,17 +100,33 @@ def configure_logger(
 class TraceContext:
     """Context manager for request tracing.
 
-    This is a placeholder for the full TraceContext implementation
-    that will be added in Phase F (Observability).
+    This class manages the lifecycle of a distributed trace,
+    recording spans/stages and finalizing to a JSON-serializable dict.
 
     Attributes:
         trace_id: Unique identifier for this trace
-        spans: List of spans within this trace
+        stages: List of recorded stages within this trace
+        start_time: Timestamp when trace started
+        metadata: Additional trace metadata
     """
 
-    def __init__(self, trace_id: str | None = None) -> None:
+    def __init__(
+        self,
+        trace_id: str | None = None,
+        metadata: dict[str, Any] | None = None
+    ) -> None:
+        """Initialize TraceContext.
+
+        Args:
+            trace_id: Unique trace identifier (auto-generated if not provided)
+            metadata: Additional metadata to include in trace
+        """
+        import time
         self.trace_id = trace_id or self._generate_id()
-        self.spans: list[dict[str, Any]] = []
+        self.stages: list[dict[str, Any]] = []
+        self.start_time = time.time()
+        self.metadata = metadata or {}
+        self._current_stage: str | None = None
 
     @staticmethod
     def _generate_id() -> str:
@@ -118,8 +134,74 @@ class TraceContext:
         import uuid
         return uuid.uuid4().hex[:16]
 
+    def record_stage(
+        self,
+        name: str,
+        duration: float | None = None,
+        metrics: dict[str, Any] | None = None,
+        data: dict[str, Any] | None = None,
+        **kwargs: Any
+    ) -> None:
+        """Record a stage/span in the trace.
+
+        Args:
+            name: Stage name (e.g., 'embedding', 'retrieval', 'rerank')
+            duration: Duration in seconds (auto-calculated if not provided)
+            metrics: Key metrics from this stage (e.g., 'hits', 'latency_ms')
+            data: Additional data to record
+            **kwargs: Extra fields to include
+        """
+        import time
+        if duration is None and self._current_stage is None:
+            duration = time.time() - self.start_time
+
+        stage = {
+            "name": name,
+            "duration": duration,
+            "metrics": metrics or {},
+            "data": data or {},
+            "timestamp": time.time(),
+        }
+        stage.update(kwargs)
+        self.stages.append(stage)
+        self._current_stage = name
+
+    def finish(
+        self,
+        status: str = "success",
+        error: str | None = None,
+        **kwargs: Any
+    ) -> dict[str, Any]:
+        """Finalize the trace and return a JSON-serializable dict.
+
+        Args:
+            status: Trace status ('success', 'error')
+            error: Error message if status is 'error'
+            **kwargs: Extra fields to include
+
+        Returns:
+            Dictionary representation of the trace
+        """
+        import time
+        total_duration = time.time() - self.start_time
+
+        result = {
+            "trace_id": self.trace_id,
+            "status": status,
+            "error": error,
+            "total_duration": total_duration,
+            "stages": self.stages,
+            "metadata": self.metadata,
+        }
+        result.update(kwargs)
+        return result
+
     def __enter__(self) -> "TraceContext":
         return self
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-        pass
+        if exc_type is not None:
+            self.record_stage("error", error=str(exc_val))
+            self.finish(status="error", error=str(exc_val))
+        else:
+            self.finish(status="success")

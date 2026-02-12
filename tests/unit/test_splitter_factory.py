@@ -52,7 +52,7 @@ class FakeSplitter(BaseSplitter):
     def provider_name(self) -> str:
         return "fake"
 
-    def split_text(self, text: str, **kwargs: Any) -> SplitResult:
+    def split_text(self, text: str, trace: Any = None, **kwargs: Any) -> SplitResult:
         """Return fake split result."""
         self.call_count += 1
 
@@ -62,11 +62,16 @@ class FakeSplitter(BaseSplitter):
             metadata={"original_length": len(text), "chunk_count": len(chunks)}
         )
 
-    def split_documents(self, documents: list[str], **kwargs: Any) -> list[SplitResult]:
+    def split_documents(
+        self,
+        documents: list[str],
+        trace: Any = None,
+        **kwargs: Any
+    ) -> list[SplitResult]:
         """Return fake split results for multiple documents."""
         self.call_count += 1
 
-        return [self.split_text(doc) for doc in documents]
+        return [self.split_text(doc, trace=trace) for doc in documents]
 
 
 class TestSplitResult:

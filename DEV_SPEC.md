@@ -1652,7 +1652,7 @@ observability:
 | B2 | Embedding 抽象接口与工厂 | [x] | 2025-02-11 | ✅ BaseEmbedding + EmbeddingFactory，27 测试通过 |
 | B3 | Splitter 抽象接口与工厂 | [x] | 2025-02-11 | ✅ BaseSplitter + SplitterFactory，28 测试通过 |
 | B4 | VectorStore 抽象接口与工厂 | [x] | 2025-02-11 | ✅ BaseVectorStore + VectorStoreFactory，28 测试通过 |
-| B5 | Reranker 抽象接口与工厂（含 None 回退） | [ ] | - | |
+| B5 | Reranker 抽象接口与工厂（含 None 回退） | [x] | 2025-02-11 | ✅ BaseReranker + RerankerFactory + NoneReranker，32 测试通过 |
 | B6 | Evaluator 抽象接口与工厂 | [ ] | - | |
 | B7.1 | OpenAI-Compatible LLM 实现 | [ ] | - | |
 | B7.2 | Ollama LLM 实现 | [ ] | - | |
@@ -1732,13 +1732,13 @@ observability:
 | 阶段 | 总任务数 | 已完成 | 进度 |
 |------|---------|--------|------|
 | 阶段 A | 3 | 3 | 100% |
-| 阶段 B | 14 | 4 | 29% |
+| 阶段 B | 14 | 5 | 36% |
 | 阶段 C | 15 | 0 | 0% |
 | 阶段 D | 7 | 0 | 0% |
 | 阶段 E | 6 | 0 | 0% |
 | 阶段 F | 5 | 0 | 0% |
 | 阶段 G | 4 | 0 | 0% |
-| **总计** | **54** | **7** | **13%** |
+| **总计** | **54** | **8** | **15%** |
 
 
 ---
@@ -1875,17 +1875,24 @@ observability:
 - **验收标准**：28 个测试全部通过，验证工厂路由与接口契约。
 - **测试方法**：`pytest -q tests/unit/test_vector_store_factory.py`。
 
-### B5：Reranker 抽象接口与工厂（含 None 回退）
+### B5：Reranker 抽象接口与工厂（含 None 回退）✅
 - **目标**：实现 `BaseReranker`、`RerankerFactory`，提供 `NoneReranker` 作为默认回退。
 - **修改文件**：
   - `src/libs/reranker/base_reranker.py`
   - `src/libs/reranker/reranker_factory.py`
   - `tests/unit/test_reranker_factory.py`
 - **实现类/函数**：
-  - `BaseReranker.rerank(query, candidates, trace: TraceContext | None = None) -> ranked_candidates`
+  - `BaseReranker.rerank(query, candidates, trace: TraceContext | None = None) -> RerankResult`
   - `NoneReranker`（保持原顺序）
-- **验收标准**：backend=none 时不会改变排序；未知 backend 明确报错。
-- **测试方法**：`pytest -q tests/unit/test_reranker_factory.py`。
+  - `RerankResult`（ids, scores, metadata）
+  - `Candidate`（id, content, score）
+  - `RerankerError`, `UnknownRerankerProviderError`, `RerankerConfigurationError`
+- **设计特点**：
+  - `rerank()` 返回 `RerankResult` 而非直接返回排序后的 candidates
+  - `rerank_with_scores()` 保留原始分数到 metadata
+  - `trace` 参数支持 Phase F 可观测性集成
+- **验收标准**：backend=none 时不会改变排序；未知 backend 明确报错；trace 参数已预留。
+- **测试方法**：`pytest -q tests/unit/test_reranker_factory.py`（32 个测试全部通过）。
 
 ### B6：Evaluator 抽象接口与工厂（先做自定义轻量指标）
 - **目标**：定义 `BaseEvaluator`、`EvaluatorFactory`，实现最小 `CustomEvaluator`（例如 hit_rate/mrr）。
