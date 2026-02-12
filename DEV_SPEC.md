@@ -1649,7 +1649,7 @@ observability:
 | 任务编号 | 任务名称 | 状态 | 完成日期 | 备注 |
 |---------|---------|------|---------|------|
 | B1 | LLM 抽象接口与工厂 | [x] | 2025-02-11 | ✅ BaseLLM + LLMFactory，29 测试通过 |
-| B2 | Embedding 抽象接口与工厂 | [ ] | - | |
+| B2 | Embedding 抽象接口与工厂 | [x] | 2025-02-11 | ✅ BaseEmbedding + EmbeddingFactory，27 测试通过 |
 | B3 | Splitter 抽象接口与工厂 | [ ] | - | |
 | B4 | VectorStore 抽象接口与工厂 | [ ] | - | |
 | B5 | Reranker 抽象接口与工厂（含 None 回退） | [ ] | - | |
@@ -1732,13 +1732,13 @@ observability:
 | 阶段 | 总任务数 | 已完成 | 进度 |
 |------|---------|--------|------|
 | 阶段 A | 3 | 3 | 100% |
-| 阶段 B | 14 | 1 | 7% |
+| 阶段 B | 14 | 2 | 14% |
 | 阶段 C | 15 | 0 | 0% |
 | 阶段 D | 7 | 0 | 0% |
 | 阶段 E | 6 | 0 | 0% |
 | 阶段 F | 5 | 0 | 0% |
 | 阶段 G | 4 | 0 | 0% |
-| **总计** | **54** | **4** | **7%** |
+| **总计** | **54** | **5** | **9%** |
 
 
 ---
@@ -1819,16 +1819,22 @@ observability:
 - **验收标准**：29 个测试全部通过，验证工厂路由与接口契约。
 - **测试方法**：`pytest -q tests/unit/test_llm_factory.py`。
 
-### B2：Embedding 抽象接口与工厂
+### B2：Embedding 抽象接口与工厂 ✅
 - **目标**：定义 `BaseEmbedding` 与 `EmbeddingFactory`，支持批量 embed。
 - **修改文件**：
   - `src/libs/embedding/base_embedding.py`
   - `src/libs/embedding/embedding_factory.py`
   - `tests/unit/test_embedding_factory.py`
 - **实现类/函数**：
-  - `BaseEmbedding.embed(texts: list[str], trace: TraceContext | None = None) -> list[list[float]]`
-  - `EmbeddingFactory.create(settings) -> BaseEmbedding`
-- **验收标准**：Fake embedding 返回稳定向量，工厂按 provider 分流。
+  - `BaseEmbedding` - 抽象基类，定义 `embed()`、`embed_single()`、`provider_name` 接口
+  - `EmbeddingResult` - 包含 vectors 和 usage
+  - `EmbeddingError`、`UnknownEmbeddingProviderError`、`EmbeddingConfigurationError` - 错误类
+  - `EmbeddingFactory` - 动态注册工厂，支持 `register()`、`create()`、`clear()` 等
+- **设计特点**：
+  - `embed()` - 批量生成 embeddings，返回 EmbeddingResult
+  - `embed_single()` - 单文本生成
+  - 与 LLM 工厂模式一致
+- **验收标准**：27 个测试全部通过，验证工厂路由与接口契约。
 - **测试方法**：`pytest -q tests/unit/test_embedding_factory.py`。
 
 ### B3：Splitter 抽象接口与工厂
