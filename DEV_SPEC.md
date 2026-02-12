@@ -1298,6 +1298,7 @@ smart-knowledge-hub/
 │   │   │   ├── base_embedding.py        # Embedding 抽象基类
 │   │   │   ├── embedding_factory.py     # Embedding 工厂
 │   │   │   ├── openai_embedding.py      # OpenAI Embedding 实现
+│   │   │   ├── azure_embedding.py       # Azure OpenAI Embedding 实现
 │   │   │   └── local_embedding.py       # 本地模型实现 (BGE/Ollama)
 │   │   │
 │   │   ├── splitter/                    # Splitter 抽象 (切分策略)
@@ -1654,9 +1655,9 @@ observability:
 | B4 | VectorStore 抽象接口与工厂 | [x] | 2025-02-11 | ✅ BaseVectorStore + VectorStoreFactory，28 测试通过 |
 | B5 | Reranker 抽象接口与工厂（含 None 回退） | [x] | 2025-02-11 | ✅ BaseReranker + RerankerFactory + NoneReranker，32 测试通过 |
 | B6 | Evaluator 抽象接口与工厂 | [x] | 2025-02-11 | ✅ BaseEvaluator + EvaluatorFactory + CustomEvaluator，31 测试通过 |
-| B7.1 | OpenAI-Compatible LLM 实现 | [ ] | - | |
-| B7.2 | Ollama LLM 实现 | [ ] | - | |
-| B7.3 | OpenAI Embedding 实现 | [ ] | - | |
+| B7.1 | OpenAI-Compatible LLM 实现 | [x] | 2025-02-12 | ✅ OpenAI + Azure + DeepSeek 实现，28 测试通过 |
+| B7.2 | Ollama LLM 实现 | [x] | 2025-02-12 | ✅ Ollama 本地 LLM 实现，16 测试通过 |
+| B7.3 | OpenAI Embedding 实现 | [x] | 2025-02-12 | ✅ OpenAI + Azure Embedding 实现，36 测试通过 |
 | B7.4 | Local Embedding 实现 | [ ] | - | |
 | B7.5 | Recursive Splitter 默认实现 | [ ] | - | |
 | B7.6 | ChromaStore 默认实现 | [ ] | - | |
@@ -1732,13 +1733,13 @@ observability:
 | 阶段 | 总任务数 | 已完成 | 进度 |
 |------|---------|--------|------|
 | 阶段 A | 3 | 3 | 100% |
-| 阶段 B | 14 | 6 | 43% |
+| 阶段 B | 14 | 9 | 64% |
 | 阶段 C | 15 | 0 | 0% |
 | 阶段 D | 7 | 0 | 0% |
 | 阶段 E | 6 | 0 | 0% |
 | 阶段 F | 5 | 0 | 0% |
 | 阶段 G | 4 | 0 | 0% |
-| **总计** | **54** | **9** | **17%** |
+| **总计** | **54** | **12** | **22%** |
 
 
 ---
@@ -1931,24 +1932,34 @@ observability:
 - **测试方法**：`pytest -q tests/unit/test_ollama_llm.py`。
 
 ### B7.3：OpenAI Embedding 实现
-- **目标**：补齐 `openai_embedding.py`，支持批量 `embed(texts)`，并可被 mock 测试。
+- **目标**：补齐 OpenAI Embedding 实现，支持批量 `embed(texts)`，并可被 mock 测试。
 - **修改文件**：
-  - `src/libs/embedding/openai_embedding.py`
-  - `tests/unit/test_embedding_providers_smoke.py`（mock HTTP）
+  - `src/libs/embedding/openai_embedding.py` - OpenAI Embeddings API 实现
+  - `src/libs/embedding/azure_embedding.py` - Azure OpenAI Embeddings API 实现
+  - `src/libs/embedding/embedding_factory.py` - 添加 Azure 特定参数支持
+  - `tests/unit/test_embedding_providers_smoke.py` - 36 个测试全部通过
+- **实现特点**：
+  - `OpenAIEmbedding` - OpenAI API 格式，兼容任何 OpenAI 兼容服务
+  - `AzureOpenAIEmbedding` - Azure 特定参数（deployment, api_version）
+  - 支持空输入处理、自定义维度、错误处理
 - **验收标准**：
-  - provider=openai 时 `EmbeddingFactory` 可创建。
+  - provider=openai/azure 时 `EmbeddingFactory` 可创建。
   - 空输入、超长输入有明确行为（报错或截断策略由配置决定）。
-- **测试方法**：`pytest -q tests/unit/test_embedding_providers_smoke.py`。
+- **测试方法**：`pytest -q tests/unit/test_embedding_providers_smoke.py`（36 个测试全部通过）。
 
-### B7.4：Local Embedding 实现（BGE/Ollama 占位）
-- **目标**：补齐 `local_embedding.py` 的默认实现路径（可先做占位/适配层），并在测试中用 Fake 向量保证链路可跑。
+### B7.4：Ollama Embedding 实现
+- **目标**：补齐 `ollama_embedding.py`，支持通过 Ollama HTTP API 调用本地部署的 Embedding 模型（如 `nomic-embed-text`、`mxbai-embed-large` 等），实现 `embed(texts)` 批量向量化功能。
 - **修改文件**：
-  - `src/libs/embedding/local_embedding.py`
-  - `tests/unit/test_local_embedding.py`
+  - `src/libs/embedding/ollama_embedding.py`
+  - `tests/unit/test_ollama_embedding.py`（包含 mock HTTP 测试）
 - **验收标准**：
-  - provider=local 时 `EmbeddingFactory` 可创建。
-  - 输出向量维度稳定（配置化或固定假维度），满足 ingestion/retrieval 的接口契约。
-- **测试方法**：`pytest -q tests/unit/test_local_embedding.py`。
+  - provider=ollama 时 `EmbeddingFactory` 可创建。
+  - 支持配置 Ollama 服务地址（默认 http://localhost:11434）和模型名称。
+  - 输出向量维度由模型决定（如 nomic-embed-text 为 768 维），满足 ingestion/retrieval 的接口契约。
+  - 支持批量 `embed(texts)` 调用，内部处理单条/批量请求逻辑。
+  - 空输入、超长输入有明确行为（报错或截断策略）。
+  - mock 测试覆盖正常响应、连接失败、超时等场景。
+- **测试方法**：`pytest -q tests/unit/test_ollama_embedding.py`。
 
 ### B7.5：Recursive Splitter 默认实现
 - **目标**：补齐 `recursive_splitter.py`，封装 LangChain 的切分逻辑，作为默认切分器。
