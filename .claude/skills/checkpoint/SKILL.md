@@ -326,7 +326,7 @@ Please reply / 请回复:
 # Stage all changed files
 git add <list of changed files>
 
-# Commit with generated message
+# Commit with generated message (no Co-Authored-By)
 git commit -m "<subject>" -m "<description>"
 ```
 
@@ -353,7 +353,7 @@ Progress saved, task [Task ID] completed!
  DEV_SPEC.md updated
  Git commit skipped
 
-You can manually commit later with:
+You can manually commit later:
   git add .
   git commit -m "<subject>" -m "<description>"
 
