@@ -1658,7 +1658,7 @@ observability:
 | B7.1 | OpenAI-Compatible LLM 实现 | [x] | 2025-02-12 | ✅ OpenAI + Azure + DeepSeek 实现，28 测试通过 |
 | B7.2 | Ollama LLM 实现 | [x] | 2025-02-12 | ✅ Ollama 本地 LLM 实现，16 测试通过 |
 | B7.3 | OpenAI Embedding 实现 | [x] | 2025-02-12 | ✅ OpenAI + Azure Embedding 实现，36 测试通过 |
-| B7.4 | Ollama Embedding 实现 | [x] | 2025-02-13 | ✅ Ollama Embedding API 实现，8 测试通过 |
+| B7.4 | Ollama Embedding 实现 | [x] | 2025-02-13 | ✅ Ollama Embedding API 实现，17 测试通过 |
 | B7.5 | Recursive Splitter 默认实现 | [ ] | - | |
 | B7.6 | ChromaStore 默认实现 | [ ] | - | |
 | B7.7 | LLM Reranker 实现 | [ ] | - | |
