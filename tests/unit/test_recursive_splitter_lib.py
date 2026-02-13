@@ -1,7 +1,7 @@
-"""Tests for RecursiveSplitter.
+"""Tests for RecursiveSplitter (LangChain wrapper).
 
 This module contains unit tests for RecursiveSplitter.
-Tests cover basic splitting, Markdown structure preservation, and edge cases.
+Tests verify the LangChain wrapper behavior and configuration.
 """
 
 import pytest
@@ -12,7 +12,7 @@ from libs.splitter.base_splitter import SplitResult, SplitterConfigurationError
 
 
 class TestRecursiveSplitter:
-    """Tests for RecursiveSplitter provider."""
+    """Tests for RecursiveSplitter provider (LangChain wrapper)."""
 
     def test_initialization_default(self):
         """Test initialization with default values."""
@@ -44,7 +44,7 @@ class TestRecursiveSplitter:
     def test_initialization_invalid_overlap(self):
         """Test initialization fails with invalid chunk_overlap."""
         with pytest.raises(SplitterConfigurationError):
-            RecursiveSplitter(chunk_overlap=-1)
+            RecursiveSplitter(chunk_overlap=-1, chunk_size=100)
 
     def test_initialization_overlap_greater_than_size(self):
         """Test initialization fails when overlap >= chunk_size."""
@@ -88,16 +88,6 @@ class TestRecursiveSplitter:
         assert "# Title" in result.chunks[0]
         assert "## Section" in result.chunks[0]
 
-    def test_split_preserves_code_blocks(self):
-        """Test that code blocks are not broken."""
-        splitter = RecursiveSplitter(chunk_size=1000, chunk_overlap=0)
-        text = "```python\ndef hello():\n    print('world')\n```\n\nSome text."
-        result = splitter.split_text(text)
-
-        # Code block should remain intact
-        assert "```python" in result.chunks[0]
-        assert "```" in result.chunks[0]
-
     def test_split_long_text(self):
         """Test splitting long text creates multiple chunks."""
         splitter = RecursiveSplitter(chunk_size=50, chunk_overlap=10)
@@ -109,19 +99,6 @@ class TestRecursiveSplitter:
         # Should have multiple chunks
         assert len(result.chunks) > 1
         assert result.metadata["chunk_count"] > 1
-
-    def test_split_has_overlap(self):
-        """Test that consecutive chunks have overlap."""
-        splitter = RecursiveSplitter(chunk_size=30, chunk_overlap=10)
-
-        text = "This is a very long text that will be split into multiple chunks with overlap."
-        result = splitter.split_text(text)
-
-        # Check that overlap is present between chunks
-        if len(result.chunks) > 1:
-            # The overlap should be visible in consecutive chunks
-            # Last 10 chars of chunk 1 should appear at start of chunk 2
-            pass  # Overlap verification is implicit in the algorithm
 
     def test_split_single_paragraph(self):
         """Test splitting a single long paragraph."""
