@@ -178,12 +178,6 @@ class EmbeddingFactory:
             init_kwargs["deployment"] = getattr(embed_config, "deployment", None)
             init_kwargs["api_version"] = getattr(embed_config, "api_version", None)
 
-        # Local-specific kwargs (sentence-transformers)
-        if provider == "sentence-transformers":
-            init_kwargs["model_name"] = getattr(embed_config, "model", None)
-            init_kwargs["device"] = getattr(embed_config, "device", None)
-            init_kwargs["normalize"] = getattr(embed_config, "normalize", True)
-
         # Apply overrides
         for key, value in kwargs.items():
             if value is not None:
@@ -208,25 +202,9 @@ def _register_default_providers() -> None:
     This function is called when the module is imported.
     It safely handles missing dependencies.
     """
-    # Register FakeEmbedding (always available - no external dependencies)
-    try:
-        from libs.embedding.local_embedding import FakeEmbedding
-        EmbeddingFactory.register("fake", FakeEmbedding)
-    except ImportError:
-        pass
-
-    # Register sentence-transformers provider
-    try:
-        from libs.embedding.local_embedding import SentenceTransformersEmbedding
-        EmbeddingFactory.register("sentence-transformers", SentenceTransformersEmbedding)
-        # Also register as 'local' for backward compatibility
-        EmbeddingFactory.register("local", SentenceTransformersEmbedding)
-    except ImportError:
-        pass
-
     # Register Ollama provider
     try:
-        from libs.embedding.local_embedding import OllamaEmbedding
+        from libs.embedding.ollama_embedding import OllamaEmbedding
         EmbeddingFactory.register("ollama", OllamaEmbedding)
     except ImportError:
         pass

@@ -8,12 +8,8 @@ from libs.embedding.base_embedding import (
     UnknownEmbeddingProviderError,
 )
 
-from libs.embedding.local_embedding import (
-    BaseLocalEmbedding,
-    SentenceTransformersEmbedding,
+from libs.embedding.ollama_embedding import (
     OllamaEmbedding,
-    FakeEmbedding,
-    LocalEmbedding,
 )
 
 __all__ = [
@@ -23,10 +19,6 @@ __all__ = [
     "EmbeddingError",
     "EmbeddingConfigurationError",
     "UnknownEmbeddingProviderError",
-    # Local
-    "BaseLocalEmbedding",
-    "SentenceTransformersEmbedding",
+    # Ollama
     "OllamaEmbedding",
-    "FakeEmbedding",
-    "LocalEmbedding",
 ]
