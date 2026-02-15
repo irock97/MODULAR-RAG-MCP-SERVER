@@ -99,6 +99,17 @@ class FileIntegrityChecker(ABC):
         pass
 
     @abstractmethod
+    def mark_failed(self, file_hash: str, error_msg: str, source_path: str | None = None) -> None:
+        """Mark a file as failed processing.
+
+        Args:
+            file_hash: SHA256 hash of the file.
+            error_msg: Error message describing the failure.
+            source_path: Optional source file path for reference.
+        """
+        pass
+
+    @abstractmethod
     def clear(self) -> None:
         """Clear all ingestion history."""
         pass
@@ -145,20 +156,26 @@ class SqliteFileIntegrityChecker(FileIntegrityChecker):
     def _init_db(self) -> None:
         """Initialize the database schema."""
         conn = self._get_connection()
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS file_history (
-                hash TEXT PRIMARY KEY,
-                source_path TEXT,
-                status TEXT NOT NULL DEFAULT 'success',
-                timestamp REAL NOT NULL,
-                created_at REAL NOT NULL DEFAULT (strftime('%s', 'now'))
-            )
-        """)
-        conn.execute("""
-            CREATE INDEX IF NOT EXISTS idx_status
-            ON file_history(status)
-        """)
-        conn.commit()
+        try:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS file_history (
+                    hash TEXT PRIMARY KEY,
+                    source_path TEXT,
+                    status TEXT NOT NULL DEFAULT 'success',
+                    error_message TEXT,
+                    timestamp REAL NOT NULL,
+                    created_at REAL NOT NULL DEFAULT (strftime('%s', 'now'))
+                )
+            """)
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_status
+                ON file_history(status)
+            """)
+            conn.commit()
+        except Exception:
+            conn.close()
+            self._conn = None
+            raise
 
     def should_skip(self, file_hash: str) -> bool:
         """Check if a file should be skipped.
@@ -170,16 +187,21 @@ class SqliteFileIntegrityChecker(FileIntegrityChecker):
             True if the file was previously processed successfully.
         """
         conn = self._get_connection()
-        cursor = conn.execute(
-            "SELECT status FROM file_history WHERE hash = ?",
-            (file_hash,)
-        )
-        row = cursor.fetchone()
+        try:
+            cursor = conn.execute(
+                "SELECT status FROM file_history WHERE hash = ?",
+                (file_hash,)
+            )
+            row = cursor.fetchone()
 
-        if row is None:
-            return False
+            if row is None:
+                return False
 
-        return row["status"] == "success"
+            return row["status"] == "success"
+        except Exception:
+            conn.close()
+            self._conn = None
+            raise
 
     def mark_success(self, file_hash: str, source_path: str | None = None) -> None:
         """Mark a file as successfully processed.
@@ -191,24 +213,64 @@ class SqliteFileIntegrityChecker(FileIntegrityChecker):
             source_path: Optional source file path for reference.
         """
         conn = self._get_connection()
-        timestamp = time.time()
+        try:
+            timestamp = time.time()
 
-        conn.execute("""
-            INSERT INTO file_history (hash, source_path, status, timestamp)
-            VALUES (?, ?, 'success', ?)
-            ON CONFLICT(hash) DO UPDATE SET
-                source_path = COALESCE(EXCLUDED.source_path, file_history.source_path),
-                status = 'success',
-                timestamp = EXCLUDED.timestamp
-        """, (file_hash, source_path, timestamp))
+            conn.execute("""
+                INSERT INTO file_history (hash, source_path, status, timestamp)
+                VALUES (?, ?, 'success', ?)
+                ON CONFLICT(hash) DO UPDATE SET
+                    source_path = COALESCE(EXCLUDED.source_path, file_history.source_path),
+                    status = 'success',
+                    timestamp = EXCLUDED.timestamp
+            """, (file_hash, source_path, timestamp))
 
-        conn.commit()
+            conn.commit()
+        except Exception:
+            conn.close()
+            self._conn = None
+            raise
+
+    def mark_failed(self, file_hash: str, error_msg: str, source_path: str | None = None) -> None:
+        """Mark a file as failed processing.
+
+        Uses UPSERT to update existing records or insert new ones.
+
+        Args:
+            file_hash: SHA256 hash of the file.
+            error_msg: Error message describing the failure.
+            source_path: Optional source file path for reference.
+        """
+        conn = self._get_connection()
+        try:
+            timestamp = time.time()
+
+            conn.execute("""
+                INSERT INTO file_history (hash, source_path, status, error_message, timestamp)
+                VALUES (?, ?, 'failed', ?, ?)
+                ON CONFLICT(hash) DO UPDATE SET
+                    source_path = COALESCE(EXCLUDED.source_path, file_history.source_path),
+                    status = 'failed',
+                    error_message = EXCLUDED.error_message,
+                    timestamp = EXCLUDED.timestamp
+            """, (file_hash, source_path, error_msg, timestamp))
+
+            conn.commit()
+        except Exception:
+            conn.close()
+            self._conn = None
+            raise
 
     def clear(self) -> None:
         """Clear all ingestion history."""
         conn = self._get_connection()
-        conn.execute("DELETE FROM file_history")
-        conn.commit()
+        try:
+            conn.execute("DELETE FROM file_history")
+            conn.commit()
+        except Exception:
+            conn.close()
+            self._conn = None
+            raise
 
     def close(self) -> None:
         """Close the database connection."""
@@ -261,6 +323,17 @@ def mark_success(file_hash: str, source_path: str | None = None) -> None:
         source_path: Optional source file path for reference.
     """
     _get_checker().mark_success(file_hash, source_path)
+
+
+def mark_failed(file_hash: str, error_msg: str, source_path: str | None = None) -> None:
+    """Mark a file as failed processing.
+
+    Args:
+        file_hash: SHA256 hash of the file.
+        error_msg: Error message describing the failure.
+        source_path: Optional source file path for reference.
+    """
+    _get_checker().mark_failed(file_hash, error_msg, source_path)
 
 
 def clear_history() -> None:

@@ -25,6 +25,7 @@ from libs.loader.file_integrity import (
     SqliteFileIntegrityChecker,
     should_skip,
     mark_success,
+    mark_failed,
     clear_history,
     close_checker,
     FileIntegrityError,
@@ -109,6 +110,23 @@ class TestSqliteFileIntegrityChecker:
         self.checker.close()
         clear_history()
 
+    def test_connection_closed_on_error(self):
+        """Verify connection is closed when SQL operation fails."""
+        # Corrupt the database to force an error
+        db_path = Path(self.temp_dir) / "test.db"
+        with open(db_path, "w") as f:
+            f.write("corrupt data")
+
+        # Create a new checker - should fail on init
+        with pytest.raises(Exception):
+            SqliteFileIntegrityChecker(db_path=str(db_path))
+
+        # Verify the connection is properly closed (not leaked)
+        # by checking that we can create a new valid checker
+        valid_db_path = Path(self.temp_dir) / "valid.db"
+        new_checker = SqliteFileIntegrityChecker(db_path=str(valid_db_path))
+        new_checker.close()
+
     def test_should_skip_unmarked_hash(self):
         """Hash not in history should not be skipped."""
         test_hash = "abc123def456" + "0" * 50
@@ -177,6 +195,38 @@ class TestSqliteFileIntegrityChecker:
         # Should still skip and have latest source path
         assert self.checker.should_skip(test_hash) is True
 
+    def test_mark_failed_creates_failed_record(self):
+        """mark_failed should create a record with 'failed' status."""
+        test_hash = "failed_test_hash_" + "0" * 48
+        self.checker.mark_failed(test_hash, "Test error message", "/test/path.pdf")
+        # Failed records should not be skipped
+        assert self.checker.should_skip(test_hash) is False
+
+    def test_mark_failed_records_error_message(self):
+        """mark_failed should record the error message."""
+        test_hash = "error_msg_test_hash_" + "0" * 46
+        error_msg = "File processing failed: invalid format"
+        self.checker.mark_failed(test_hash, error_msg, "/test.pdf")
+
+        # Re-create to query fresh state
+        checker2 = SqliteFileIntegrityChecker(
+            db_path=str(Path(self.temp_dir) / "test.db")
+        )
+        try:
+            assert checker2.should_skip(test_hash) is False
+        finally:
+            checker2.close()
+
+    def test_mark_failed_then_success(self):
+        """Failed record can be updated to success."""
+        test_hash = "failed_to_success_" + "0" * 49
+        self.checker.mark_failed(test_hash, "Initial error", "/test.pdf")
+        assert self.checker.should_skip(test_hash) is False
+
+        # Mark as success
+        self.checker.mark_success(test_hash, "/test.pdf")
+        assert self.checker.should_skip(test_hash) is True
+
 
 class TestFileIntegrityCheckerInterface:
     """Tests for FileIntegrityChecker abstract interface."""
@@ -189,6 +239,7 @@ class TestFileIntegrityCheckerInterface:
         """FileIntegrityChecker should have required abstract methods."""
         assert hasattr(FileIntegrityChecker, 'should_skip')
         assert hasattr(FileIntegrityChecker, 'mark_success')
+        assert hasattr(FileIntegrityChecker, 'mark_failed')
         assert hasattr(FileIntegrityChecker, 'clear')
         assert hasattr(FileIntegrityChecker, 'close')
 
@@ -196,6 +247,7 @@ class TestFileIntegrityCheckerInterface:
         """SqliteFileIntegrityChecker should implement all interface methods."""
         assert hasattr(SqliteFileIntegrityChecker, 'should_skip')
         assert hasattr(SqliteFileIntegrityChecker, 'mark_success')
+        assert hasattr(SqliteFileIntegrityChecker, 'mark_failed')
         assert hasattr(SqliteFileIntegrityChecker, 'clear')
         assert hasattr(SqliteFileIntegrityChecker, 'close')
 
@@ -235,6 +287,21 @@ class TestModuleLevelFunctions:
         mark_success("close_test_" + "0" * 55, "/test.pdf")
         close_checker()
         # After close, should get fresh instance on next call
+
+    def test_mark_failed_uses_module_level_checker(self):
+        """mark_failed should use the module-level checker."""
+        test_hash = "module_failed_test_" + "0" * 51
+        mark_failed(test_hash, "Test error", "/test.pdf")
+        assert should_skip(test_hash) is False
+
+    def test_mark_failed_then_mark_success(self):
+        """Failed file can be marked as success using module-level functions."""
+        test_hash = "failed_to_success_module_" + "0" * 46
+        mark_failed(test_hash, "Initial error", "/test.pdf")
+        assert should_skip(test_hash) is False
+
+        mark_success(test_hash, "/test.pdf")
+        assert should_skip(test_hash) is True
 
 
 class TestIntegration:

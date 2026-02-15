@@ -281,6 +281,102 @@ class TestMetadataContract:
         assert chunk.metadata["title"] == "Source"
 
 
+class TestImageMetadataContract:
+    """Tests for C1 image metadata format compliance."""
+
+    def test_document_images_metadata_format(self):
+        """Verify images metadata follows C1 spec format."""
+        images = [
+            {
+                "id": "image_0",
+                "path": "/data/images/abc123/image_0.png",
+                "page": 1,
+                "text_offset": 150,
+                "text_length": 18,
+                "position": {"width": 800, "height": 600},
+            },
+            {
+                "id": "image_1",
+                "path": "/data/images/abc123/image_1.png",
+                "page": 2,
+                "text_offset": 500,
+                "text_length": 18,
+                "position": {"width": 1024, "height": 768},
+            },
+        ]
+
+        doc = Document(
+            id="img_doc",
+            text="Document with images\n[IMAGE: image_0]\nSome text\n[IMAGE: image_1]",
+            metadata={"source_path": "/test.pdf", "images": images},
+        )
+
+        assert "images" in doc.metadata
+        assert len(doc.metadata["images"]) == 2
+        assert doc.metadata["images"][0]["id"] == "image_0"
+        assert doc.metadata["images"][0]["text_offset"] == 150
+        assert doc.metadata["images"][0]["text_length"] == 18
+        assert doc.metadata["images"][1]["page"] == 2
+
+    def test_image_metadata_required_fields(self):
+        """Verify all required fields in image metadata per C1 spec."""
+        placeholder = "[IMAGE: test_image]"
+        image = {
+            "id": "test_image",
+            "path": "/path/to/image.png",
+            "page": 3,
+            "text_offset": 1000,
+            "text_length": len(placeholder),
+            "position": {"width": 500, "height": 400},
+        }
+
+        doc = Document(
+            id="test",
+            text=f"Text with {placeholder} placeholder",
+            metadata={"images": [image]},
+        )
+
+        img = doc.metadata["images"][0]
+        assert "id" in img
+        assert "path" in img
+        assert "page" in img
+        assert "text_offset" in img
+        # text_length can be computed from placeholder format
+        assert img["text_length"] == len(placeholder)
+
+    def test_image_metadata_optional_position(self):
+        """Verify position field is optional."""
+        image = {
+            "id": "no_position",
+            "path": "/path/to/image.png",
+            "page": 1,
+            "text_offset": 0,
+            "text_length": 20,
+        }
+
+        doc = Document(
+            id="test",
+            text="Text",
+            metadata={"images": [image]},
+        )
+
+        assert "position" not in doc.metadata["images"][0]
+
+    def test_image_placeholder_in_text(self):
+        """Verify image placeholder format in document text."""
+        placeholder = "[IMAGE: image_0]"
+        doc = Document(
+            id="test",
+            text=f"Before text{placeholder}After text",
+            metadata={"images": [{"id": "image_0", "path": "/test.png", "page": 1, "text_offset": 11, "text_length": len(placeholder)}]},
+        )
+
+        assert placeholder in doc.text
+        # Verify text_offset points to correct position
+        offset = doc.metadata["images"][0]["text_offset"]
+        assert doc.text[offset:offset + doc.metadata["images"][0]["text_length"]] == placeholder
+
+
 class TestImmutability:
     """Tests for immutability of core types."""
 
