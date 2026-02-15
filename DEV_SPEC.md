@@ -1661,8 +1661,8 @@ observability:
 | B7.4 | Ollama Embedding 实现 | [x] | 2025-02-13 | ✅ Ollama Embedding API 实现，17 测试通过 |
 | B7.5 | Recursive Splitter 默认实现 | [x] | 2025-02-13 | ✅ LangChain 封装，Markdown 结构保留，15 测试通过 |
 | B7.6 | ChromaStore 默认实现 | [x] | 2025-02-13 | ✅ upsert/query/filter/delete/count/clear，7 集成测试通过 |
-| B7.7 | LLM Reranker 实现 | [ ] | - | |
-| B7.8 | Cross-Encoder Reranker 实现 | [ ] | - | |
+| B7.7 | LLM Reranker 实现 | [x] | 2025-02-13 | ✅ Prompt-driven 评分 + JSON 解析 + Score 归一化，17 测试通过 |
+| B7.8 | Cross-Encoder Reranker 实现 | [x] | 2025-02-13 | ✅ sentence-transformers Cross-Encoder，12 测试通过 |
 
 #### 阶段 C：Ingestion Pipeline MVP
 
@@ -1733,13 +1733,13 @@ observability:
 | 阶段 | 总任务数 | 已完成 | 进度 |
 |------|---------|--------|------|
 | 阶段 A | 3 | 3 | 100% |
-| 阶段 B | 14 | 12 | 86% |
+| 阶段 B | 14 | 14 | 100% |
 | 阶段 C | 15 | 0 | 0% |
 | 阶段 D | 7 | 0 | 0% |
 | 阶段 E | 6 | 0 | 0% |
 | 阶段 F | 5 | 0 | 0% |
 | 阶段 G | 4 | 0 | 0% |
-| **总计** | **54** | **15** | **28%** |
+| **总计** | **54** | **17** | **31%** |
 
 
 ---
