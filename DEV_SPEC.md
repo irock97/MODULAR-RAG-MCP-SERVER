@@ -171,7 +171,7 @@
 
 设计要点：
 - **明确分层职责**：
-	- Loader：负责把原始文件解析为统一的 `Document` 对象（`text` + `metadata`）。**在当前阶段，仅实现 PDF 格式的 Loader。**
+  - Loader：负责把原始文件解析为统一的 `Document` 对象（`text` + `metadata`；类型定义集中在 `src/core/types.py`）。**在当前阶段，仅实现 PDF 格式的 Loader。**
 		- 统一输出格式采用规范化 Markdown作为 `Document.text`：这样可以更好的配合后面的Splitte（Langchain RecursiveCharacterTextSplitte））方法产出高质量切块。
 		- Loader 同时抽取/补齐基础 metadata（如 `source_path`, `doc_type=pdf`, `page`, `title/heading_outline`, `images` 引用列表等），为定位、回溯与后续 Transform 提供依据。
 	- Splitter：基于 Markdown 结构（标题/段落/代码块等）与参数配置把 `Document` 切为若干 Chunk，保留原始位置与上下文引用。
@@ -1231,7 +1231,7 @@ smart-knowledge-hub/
 │   ├── core/                            # Core 层 (核心业务逻辑)
 │   │   ├── __init__.py
 │   │   ├── settings.py                   # 配置加载与校验 (Settings：load_settings/validate_settings)
-│   │   │
+│   │   ├── types.py                      # 核心数据类型/契约（Document/Chunk/ChunkRecord），供 ingestion/retrieval/mcp 复用
 │   │   ├── query_engine/                # 查询引擎模块
 │   │   │   ├── __init__.py
 │   │   │   ├── query_processor.py       # 查询预处理 (关键词提取/查询扩展)
@@ -1403,6 +1403,7 @@ smart-knowledge-hub/
 | 模块 | 职责 | 关键技术点 |
 |-----|-----|----------|
 | `settings.py` | 配置加载与校验 | 读取 `config/settings.yaml`，解析为 `Settings`，必填字段校验（fail-fast） |
+| `types.py` | 核心数据类型/契约（全链路复用） | 定义 `Document/Chunk/ChunkRecord`；序列化稳定；作为 ingestion/retrieval/mcp 的数据契约中心 |
 | `query_processor.py` | 查询预处理 | 关键词提取、同义词扩展、Metadata 解析 |
 | `hybrid_search.py` | 混合检索编排 | 并行 Dense/Sparse 召回，结果融合 |
 | `dense_retriever.py` | 语义向量检索 | Query Embedding，Cosine Similarity |
@@ -1416,16 +1417,15 @@ smart-knowledge-hub/
 
 | 模块 | 职责 | 关键技术点 |
 |-----|-----|----------|
-| `pipeline.py` | Pipeline 流程编排 | 串行执行，异常处理，增量更新 |
-| `pdf_loader.py` | PDF 文档解析 | MarkItDown，Markdown 标准化输出 |
-| `file_integrity.py` | 文件去重 | SHA256 哈希，增量检测 |
-| `recursive_splitter.py` | 文本切分 | LangChain RecursiveCharacterTextSplitter |
-| `chunk_refiner.py` | Chunk 智能重组 | LLM 二次加工，去噪合并 |
-| `metadata_enricher.py` | 元数据增强 | Title/Summary/Tags 自动生成 |
-| `image_captioner.py` | 图片描述生成 | Vision LLM (GPT-4o / Qwen-VL) |
-| `dense_encoder.py` | 稠密向量编码 | OpenAI Embedding / BGE |
-| `sparse_encoder.py` | 稀疏向量编码 | BM25 编码，IDF 统计 |
-| `vector_upserter.py` | 向量存储 | Chroma Upsert，幂等写入 |
+| `pipeline.py` | Pipeline 流程编排 | 串行执行（或分阶段可观测），异常处理，增量更新；统一使用 `core/types.py` 的数据契约 |
+| `transform/base_transform.py` | Transform 抽象 | 原子化、幂等；可独立重试；失败降级不阻塞 |
+| `transform/chunk_refiner.py` | Chunk 智能重组 | 规则去噪 + 可选 LLM 二次加工；可回退 |
+| `transform/metadata_enricher.py` | 元数据增强 | Title/Summary/Tags 规则生成 + 可选 LLM 增强 |
+| `transform/image_captioner.py` | 图片描述生成 | Vision LLM；写回 metadata/text；禁用/失败降级 |
+| `embedding/dense_encoder.py` | 稠密向量编码 | 通过 `libs.embedding` 调用具体 provider；批处理 |
+| `embedding/sparse_encoder.py` | 稀疏向量编码 | BM25 编码/统计（或替换实现）；批处理 |
+| `storage/vector_upserter.py` | 向量存储写入 | 通过 `libs.vector_store` Upsert；幂等；metadata 完整 |
+
 
 #### 5.3.4 Libs 层 (可插拔抽象)
 
@@ -1433,6 +1433,9 @@ smart-knowledge-hub/
 |---------|------------|----------|
 | `LLMClient` | Azure OpenAI | OpenAI / Ollama / DeepSeek |
 | `EmbeddingClient` | OpenAI text-embedding-3 | BGE / Ollama 本地模型 |
+| `Loader` | PDF Loader（MarkItDown） | Markdown/HTML/Code Loader 等 |
+| `FileIntegrity` | SHA256 指纹缓存/判定 | SQLite/本地 cache/远端元数据服务 |
+| `Splitter` | RecursiveCharacterTextSplitter | Semantic / FixedLen |
 | `VectorStore` | Chroma | Qdrant / Pinecone / Milvus |
 | `Reranker` | CrossEncoder | LLM Rerank / None (关闭) |
 | `Evaluator` | Ragas | DeepEval / 自定义指标 |
@@ -1668,7 +1671,7 @@ observability:
 
 | 任务编号 | 任务名称 | 状态 | 完成日期 | 备注 |
 |---------|---------|------|---------|------|
-| C1 | 定义核心数据模型（Document/Chunk/Record） | [ ] | - | |
+| C1 | 定义核心数据类型/契约（Document/Chunk/ChunkRecord） | [ ] | - | |
 | C2 | 文件完整性检查（SHA256） | [ ] | - | |
 | C3 | Loader 抽象基类与 PDF Loader | [ ] | - | |
 | C4 | Splitter 集成（调用 Libs） | [ ] | - | |
@@ -2010,15 +2013,20 @@ observability:
 > 注：本阶段严格按 5.4.1 的离线数据流落地，并优先实现“增量跳过（SHA256）”。
 
 ### C1：定义核心数据模型（Document/Chunk/Record）
-- **目标**：定义 ingestion 与 retrieval 共用的数据结构（最少字段：text、metadata、ids）。
+### C1：定义核心数据类型/契约（Document/Chunk/ChunkRecord）
+- **目标**：定义全链路（ingestion → retrieval → mcp tools）共用的数据结构/契约，避免散落在各子模块内导致的耦合与重复。
 - **修改文件**：
-  - `src/ingestion/__init__.py`（若需新增 `src/ingestion/models.py`，需同步在 5.2 目录结构中补充）
-  - `tests/unit/test_models.py`
+  - `src/core/types.py`
+  - `src/core/__init__.py`（可选：统一 re-export 以简化导入路径）
+  - `tests/unit/test_core_types.py`
 - **实现类/函数**（建议）：
   - `Document(id, text, metadata)`
-  - `Chunk(id, text, metadata, start_offset, end_offset)`
-- **验收标准**：模型可序列化（dict/json）并在测试中断言字段稳定。
-- **测试方法**：`pytest -q tests/unit/test_models.py`。
+  - `Chunk(id, text, metadata, start_offset, end_offset, source_ref?)`
+  - `ChunkRecord(id, text, metadata, dense_vector?, sparse_vector?)`（用于存储/检索载体；字段按后续 C8~C12 演进）
+- **验收标准**：
+  - 类型可序列化（dict/json）且字段稳定（单元测试断言）。
+  - `metadata` 约定最少包含 `source_path`，其余字段允许增量扩展但不得破坏兼容。
+- **测试方法**：`pytest -q tests/unit/test_core_types.py`。
 
 ### C2：文件完整性检查（SHA256）
 - **目标**：在Libs中实现 `file_integrity.py`：计算文件 hash，并提供“是否跳过”的判定接口（先用本地 cache 文件/SQLite 任一实现，后续可替换）。
