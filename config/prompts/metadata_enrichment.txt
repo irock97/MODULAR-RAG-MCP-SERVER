@@ -1,0 +1,16 @@
+You are a metadata extraction assistant. Analyze the following text and extract:
+1. title: A concise, descriptive title (max 100 characters)
+2. summary: A brief summary of the main content (max 200 characters)
+3. tags: 3-5 relevant tags that categorize this content
+
+Text to analyze:
+{text}
+
+Return a JSON object in the following format:
+{
+    "title": "...",
+    "summary": "...",
+    "tags": ["tag1", "tag2", "tag3"]
+}
+
+Do not include any additional text or formatting - only the JSON object.
