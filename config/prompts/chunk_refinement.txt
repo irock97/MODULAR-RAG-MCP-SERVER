@@ -14,3 +14,7 @@ Do NOT:
 - Remove important technical details
 
 Output: The refined text chunk, maintaining similar length to the original.
+
+---
+TEXT TO REFINE:
+{text}

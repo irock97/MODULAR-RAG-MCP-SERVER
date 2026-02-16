@@ -1,0 +1,45 @@
+{
+  "description": "典型噪声场景 fixtures，用于测试 ChunkRefiner 规则去噪能力",
+  "scenarios": {
+    "typical_noise_scenario": {
+      "input": "  \n\n  Document Title  \n  \n  \n  \n  \n  This is the main content of the document. It has some meaningful information.  \n  \n  \n  Page 1 of 10  \n  \n  \n",
+      "expected_contains": ["Document Title", "main content", "meaningful information"],
+      "expected_not_contains": ["\n\n\n\n\n", "  \n  ", "Page 1 of 10"]
+    },
+    "ocr_errors": {
+      "input": "Th1s 1s d t3xt w1th numb3rs replac3d l3tters. som3 w0rds h4ve numb3rs. pr0p3r n0uns sh0uld b3 pr3s3rv3d.",
+      "expected_contains": ["text", "words", "proper", "nouns"],
+      "description": "OCR 错误文本，验证保留内容能力"
+    },
+    "page_header_footer": {
+      "input": "CONFIDENTIAL - Internal Use Only\n\n\n# Chapter 1: Introduction\n\nThis chapter introduces the main concepts.\n\n\n---\n\nDocument ID: DOC-2024-001\nGenerated: 2024-01-15",
+      "expected_contains": ["Chapter 1: Introduction", "main concepts"],
+      "expected_not_contains": ["CONFIDENTIAL", "Document ID:", "Generated:"]
+    },
+    "excessive_whitespace": {
+      "input": "This    is  a   sentence   with    irregular   spacing.  \n\n    \n    Multiple     lines    with    extra    spaces.   \n\n\nEnd of paragraph.",
+      "expected_contains": ["sentence", "irregular", "spacing", "Multiple lines", "End of paragraph"],
+      "expected_not_contains": ["    ", "\n\n\n"]
+    },
+    "format_markers": {
+      "input": "<!-- HTML comment that should be removed -->\n\n**Bold text** and *italic text*\n\n- List item 1\n- List item 2\n\n```python\ndef example():\n    print('code block')\n```\n\n<!-- Another comment -->",
+      "expected_contains": ["Bold text", "italic text", "List item 1", "List item 2", "def example", "code block"],
+      "expected_not_contains": ["<!--", "-->"]
+    },
+    "clean_text": {
+      "input": "This is a clean paragraph with no noise. It should pass through the refiner unchanged.",
+      "expected_equals": "This is a clean paragraph with no noise. It should pass through the refiner unchanged.",
+      "description": "干净文本，验证不会过度清理"
+    },
+    "code_blocks": {
+      "input": "Here is some code:\n\n```python\ndef calculate_metrics(values: list[int]) -> dict:\n    total = sum(values)\n    avg = total / len(values)\n    return {\"total\": total, \"average\": avg}\n```\n\nAnd some explanation after the code.",
+      "expected_contains": ["def calculate_metrics", "values", "list[int]", "total", "average", "And some explanation"],
+      "expected_not_contains": ["```python", "```"]
+    },
+    "mixed_noise": {
+      "input": "\n\n  \n  =======================================\n  \n  REPORT: Q4 2024 Financial Summary\n  \n  =======================================\n  \n  ### Executive Summary\n\n  This report contains the financial results for Q4 2024.\n\n  Revenue increased by 15% year-over-year.\n  Operating costs decreased by 8%.\n\n  <!-- TODO: Add charts in final version -->\n\n  -------------------------\n  End of Report\n  -------------------------\n  \n  \n",
+      "expected_contains": ["Q4 2024", "Financial Summary", "Executive Summary", "Revenue", "15%", "Operating costs", "8%"],
+      "expected_not_contains": ["=======================================", "TODO:", "-------------------------", "\n\n\n"]
+    }
+  }
+}

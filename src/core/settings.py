@@ -129,6 +129,18 @@ class ObservabilityConfig:
 
 
 @dataclass
+class ChunkRefinerConfig:
+    """Chunk refinement configuration.
+
+    Attributes:
+        use_llm: Whether to use LLM-based refinement
+        prompt_path: Optional path to custom prompt template
+    """
+    use_llm: bool = False
+    prompt_path: str | None = None
+
+
+@dataclass
 class IngestionConfig:
     """Ingestion pipeline configuration.
 
@@ -137,11 +149,13 @@ class IngestionConfig:
         chunk_overlap: Overlap between chunks
         splitter: Splitter type (recursive, semantic, fixed_length)
         batch_size: Batch size for processing
+        chunk_refiner: Chunk refinement configuration
     """
     chunk_size: int = 1000
     chunk_overlap: int = 200
     splitter: str = "recursive"
     batch_size: int = 100
+    chunk_refiner: ChunkRefinerConfig = field(default_factory=ChunkRefinerConfig)
 
 
 @dataclass
@@ -367,12 +381,19 @@ def _yaml_to_settings(data: dict[str, Any]) -> Settings:
             structured_logging=data.get("structured_logging", True),
         )
 
+    def _build_chunk_refiner(data: dict[str, Any]) -> ChunkRefinerConfig:
+        return ChunkRefinerConfig(
+            use_llm=data.get("use_llm", False),
+            prompt_path=data.get("prompt_path"),
+        )
+
     def _build_ingestion(data: dict[str, Any]) -> IngestionConfig:
         return IngestionConfig(
             chunk_size=data.get("chunk_size", 1000),
             chunk_overlap=data.get("chunk_overlap", 200),
             splitter=data.get("splitter", "recursive"),
             batch_size=data.get("batch_size", 100),
+            chunk_refiner=_build_chunk_refiner(data.get("chunk_refiner", {})),
         )
 
     return Settings(

@@ -1256,6 +1256,10 @@ smart-knowledge-hub/
 │   │   ├── __init__.py
 │   │   ├── pipeline.py                  # Pipeline 主流程编排
 │   │   │
+│   │   ├── chunking/                    # Chunking 模块 (文档切分)
+│   │   │   ├── __init__.py
+│   │   │   └── document_chunker.py      # Document → Chunks 转换（调用 libs.splitter）
+│   │   │
 │   │   ├── transform/                   # Transform 模块 (增强处理)
 │   │   │   ├── __init__.py
 │   │   │   ├── base_transform.py        # Transform 抽象基类
@@ -1418,6 +1422,7 @@ smart-knowledge-hub/
 | 模块 | 职责 | 关键技术点 |
 |-----|-----|----------|
 | `pipeline.py` | Pipeline 流程编排 | 串行执行（或分阶段可观测），异常处理，增量更新；统一使用 `core/types.py` 的数据契约 |
+| `chunking/document_chunker.py` | Document→Chunks 转换 | 调用 `libs.splitter` 进行文本切分；生成稳定 Chunk ID（格式：`{doc_id}_{index:04d}_{hash}`）；继承 metadata；建立 source_ref 溯源链接 |
 | `transform/base_transform.py` | Transform 抽象 | 原子化、幂等；可独立重试；失败降级不阻塞 |
 | `transform/chunk_refiner.py` | Chunk 智能重组 | 规则去噪 + 可选 LLM 二次加工；可回退 |
 | `transform/metadata_enricher.py` | 元数据增强 | Title/Summary/Tags 规则生成 + 可选 LLM 增强 |
@@ -1674,8 +1679,8 @@ observability:
 | C1 | 定义核心数据类型/契约（Document/Chunk/ChunkRecord） | [x] | 2025-02-13 | ✅ Document/Chunk/ChunkRecord + 序列化 + 22 测试通过 |
 | C2 | 文件完整性检查（SHA256） | [x] | 2025-02-13 | ✅ FileIntegrityChecker 抽象类 + SqliteFileIntegrityChecker + 21 测试 |
 | C3 | Loader 抽象基类与 PDF Loader | [x] | 2025-02-15 | ✅ BaseLoader + PdfLoader (MarkItDown + PyMuPDF) + 28 测试通过 |
-| C4 | Splitter 集成（调用 Libs） | [ ] | - | |
-| C5 | Transform 基类 + ChunkRefiner | [ ] | - | |
+| C4 | Splitter 集成（调用 Libs） | [x] | 2025-02-16 | ✅ DocumentChunker 适配器 + 16 测试通过 |
+| C5 | Transform 基类 + ChunkRefiner | [x] | 2025-02-16 | ✅ BaseTransform + ChunkRefiner + 36 单元测试 + 集成测试 |
 | C6 | MetadataEnricher | [ ] | - | |
 | C7 | ImageCaptioner | [ ] | - | |
 | C8 | DenseEncoder | [ ] | - | |
@@ -1737,12 +1742,12 @@ observability:
 |------|---------|--------|------|
 | 阶段 A | 3 | 3 | 100% |
 | 阶段 B | 14 | 14 | 100% |
-| 阶段 C | 15 | 3 | 20% |
+| 阶段 C | 15 | 5 | 33% |
 | 阶段 D | 7 | 0 | 0% |
 | 阶段 E | 6 | 0 | 0% |
 | 阶段 F | 5 | 0 | 0% |
 | 阶段 G | 4 | 0 | 0% |
-| **总计** | **54** | **20** | **37%** |
+| **总计** | **54** | **22** | **41%** |
 
 
 ---
@@ -2081,25 +2086,110 @@ observability:
   - 验证带图片PDF能提取图片并正确插入占位符
 
 ### C4：Splitter 集成（调用 Libs）
-- **目标**：在 Pipeline 中集成 `libs.splitter`，验证 Splitter 工厂配置是否生效。
+- **目标**：实现 Chunking 模块作为 `libs.splitter` 和 Ingestion Pipeline 之间的**适配器层**，完成 Document→Chunks 的业务对象转换。
+- **核心职责（DocumentChunker 相比 libs.splitter 的增值）**：
+  - **职责边界说明**：
+    - `libs.splitter`：纯文本切分工具（`str → List[str]`），不涉及业务对象
+    - `DocumentChunker`：业务适配器（`Document对象 → List[Chunk对象]`），添加业务逻辑
+  - **5 个增值功能**：
+    1. **Chunk ID 生成**：为每个文本片段生成唯一且确定性的 ID（格式：`{doc_id}_{index:04d}_{hash_8chars}`）
+    2. **元数据继承**：将 Document.metadata 复制到每个 Chunk.metadata（source_path, doc_type, title 等）
+    3. **添加 chunk_index**：记录 chunk 在文档中的序号（从 0 开始），用于排序和定位
+    4. **建立 source_ref**：记录 Chunk.source_ref 指向父 Document.id，支持溯源
+    5. **类型转换**：将 libs.splitter 的 `List[str]` 转换为符合 core.types 契约的 `List[Chunk]` 对象
 - **修改文件**：
-  - `src/ingestion/pipeline.py`
-  - `tests/unit/test_ingestion_splitter_integration.py`
-- **验收标准**：通过配置切换（例如改变 chunk_size），Ingestion Pipeline 产出的 chunk 长度发生相应变化。
-- **测试方法**：`pytest -q tests/unit/test_ingestion_splitter_integration.py`。
-
-### C5：Transform 抽象基类 + ChunkRefiner（规则去噪 + 可选 LLM 重写）
-- **目标**：定义 `BaseTransform`；实现 `ChunkRefiner`：先做规则去噪，再支持（可选）LLM 重写/规范化，并提供可配置开关与失败降级（LLM 不可用/异常时不阻塞 ingestion）。
-- **修改文件**：
-  - `src/ingestion/transform/base_transform.py`
-  - `src/ingestion/transform/chunk_refiner.py`
-  - `config/prompts/chunk_refinement.txt`（作为默认 prompt 来源；可在测试中注入替代文本）
-  - `tests/unit/test_chunk_refiner.py`
+  - `src/ingestion/chunking/document_chunker.py`
+  - `src/ingestion/chunking/__init__.py`
+  - `tests/unit/test_document_chunker.py`
+- **实现类/函数**：
+  - `DocumentChunker` 类
+  - `__init__(settings: Settings)`：通过 SplitterFactory 获取配置的 splitter 实例
+  - `split_document(document: Document) -> List[Chunk]`：完整的转换流程
+  - `_generate_chunk_id(doc_id: str, index: int) -> str`：生成稳定 Chunk ID
+  - `_inherit_metadata(document: Document, chunk_index: int) -> dict`：元数据继承逻辑
 - **验收标准**：
-  - 规则模式：能去掉空白/页眉页脚样式噪声（用 fixtures 字符串断言）。
-  - LLM 模式：在注入/配置启用 LLM 时，会对 chunk 文本进行重写并返回稳定结果（测试中用 mock LLM 断言调用与输出）。
-  - 降级行为：LLM 调用失败时回退到规则结果（可在 metadata 标记降级原因，但不抛出致命异常）。
-- **测试方法**：`pytest -q tests/unit/test_chunk_refiner.py`。
+  - **配置驱动**：通过修改 settings.yaml 中的 splitter 配置（如 chunk_size），产出的 chunk 数量和长度发生相应变化
+  - **ID 唯一性**：每个 Chunk 的 ID 在整个文档中唯一
+  - **ID 确定性**：同一 Document 对象重复切分产生相同的 Chunk ID 序列
+  - **元数据完整性**：Chunk.metadata 包含所有 Document.metadata 字段 + chunk_index 字段
+  - **溯源链接**：所有 Chunk.source_ref 正确指向父 Document.id
+  - **类型契约**：输出的 Chunk 对象符合 `core/types.py` 中的 Chunk 定义（可序列化、字段完整）
+- **测试方法**：`pytest -q tests/unit/test_document_chunker.py`（使用 FakeSplitter 隔离测试，无需真实 LLM/外部依赖）。
+
+### C5：Transform 抽象基类 + ChunkRefiner（规则去噪 + LLM 增强）
+- **目标**：定义 `BaseTransform`；实现 `ChunkRefiner`：先做规则去噪，再通过LLM进行智能增强，并提供失败降级机制（LLM异常时回退到规则结果，不阻塞 ingestion）。
+- **前置条件**（必须准备）：
+  - **必须配置LLM**：在 `config/settings.yaml` 中配置可用的LLM（provider/model/api_key）
+  - **环境变量**：设置对应的API key环境变量（`OPENAI_API_KEY`/`OLLAMA_BASE_URL`等）
+  - **验证目的**：通过真实LLM测试验证配置正确性和refinement效果
+- **修改文件**：
+  - `src/ingestion/transform/base_transform.py`（新增）
+  - `src/ingestion/transform/chunk_refiner.py`（新增）
+  - `src/core/trace/trace_context.py`（新增：最小实现，Phase F 完善）
+  - `config/prompts/chunk_refinement.txt`（已存在，需验证内容并补充 {text} 占位符）
+  - `tests/fixtures/noisy_chunks.json`（新增：8个典型噪声场景）
+  - `tests/unit/test_chunk_refiner.py`（新增：27个单元测试）
+  - `tests/integration/test_chunk_refiner_llm.py`（新增：真实LLM集成测试）
+- **实现类/函数**：
+  - `BaseTransform.transform(chunks, trace) -> List[Chunk]`
+  - `ChunkRefiner.__init__(settings, llm?, prompt_path?)`
+  - `ChunkRefiner.transform(chunks, trace) -> List[Chunk]`
+  - `ChunkRefiner._rule_based_refine(text) -> str`（去空白/页眉页脚/格式标记/HTML注释）
+  - `ChunkRefiner._llm_refine(text, trace) -> str | None`（可选 LLM 重写，失败返回 None）
+  - `ChunkRefiner._load_prompt(prompt_path?)`（从文件加载prompt模板，支持默认fallback）
+- **实现流程建议**：
+  1. 先创建 `tests/fixtures/noisy_chunks.json`，包含8个典型噪声场景：
+     - typical_noise_scenario: 综合噪声（页眉/页脚/空白）
+     - ocr_errors: OCR错误文本
+     - page_header_footer: 页眉页脚模式
+     - excessive_whitespace: 多余空白
+     - format_markers: HTML/Markdown标记
+     - clean_text: 干净文本（验证不过度清理）
+     - code_blocks: 代码块（验证保留内部格式）
+     - mixed_noise: 真实混合场景
+  2. 创建 `TraceContext` 占位实现（uuid生成trace_id，record_stage存储阶段数据）
+  3. 实现 `BaseTransform` 抽象接口
+  4. 实现 `ChunkRefiner._rule_based_refine` 规则去噪逻辑（正则匹配+分段处理）
+  5. 编写规则模式单元测试（使用 fixtures 断言清洗效果）
+  6. 实现 `_llm_refine` 可选增强（读取 prompt、调用 LLM、错误处理）
+  7. 编写 LLM 模式单元测试（mock LLM 断言调用与输出）
+  8. 编写降级场景测试（LLM 失败时回退到规则结果，标记 metadata）
+  9. **编写真实LLM集成测试并执行验证**（必须执行，验证LLM配置）
+- **验收标准**：
+  - **单元测试（快速反馈循环）**：
+    - 规则模式：对 fixtures 噪声样例能正确去噪（连续空白/页眉页脚/格式标记/分隔线）
+    - 保留能力：代码块内部格式不被破坏，Markdown结构完整保留
+    - LLM 模式：mock LLM 时能正确调用并返回重写结果，metadata 标记 `refined_by: "llm"`
+    - 降级行为：LLM 失败时回退到规则结果，metadata 标记 `refined_by: "rule"` 和 fallback 原因
+    - 配置开关：通过 `settings.yaml` 的 `ingestion.chunk_refiner.use_llm` 控制行为
+    - 异常处理：单个chunk处理异常不影响其他chunk，保留原文
+  - **集成测试（验收必须项）**：
+    - ✅ **必须验证真实LLM调用成功**：使用前置条件中配置的LLM进行真实refinement
+    - ✅ **必须验证输出质量**：LLM refined文本确实更干净（噪声减少、内容保留）
+    - ✅ **必须验证降级机制**：无效模型名称时优雅降级到rule-based，不崩溃
+    - 说明：这是验证"前置条件中准备的LLM配置是否正确"的必要步骤
+- **测试方法**：
+  - **阶段1-单元测试（开发中快速迭代）**：
+    ```bash
+    pytest tests/unit/test_chunk_refiner.py -v
+    # ✅ 27个测试全部通过，使用Mock隔离，无需真实API
+    ```
+  - **阶段2-集成测试（验收必须执行）**：
+    ```bash
+    # 1. 运行真实LLM集成测试（必须）
+    pytest tests/integration/test_chunk_refiner_llm.py -v -s
+    # ✅ 验证LLM配置正确，refinement效果符合预期
+    # ⚠️ 会产生真实API调用与费用
+    
+    # 2. Review打印输出，确认精炼质量
+    # - 噪声是否被有效去除？
+    # - 有效内容是否完整保留？
+    # - 降级机制是否正常工作？
+    ```
+  - **测试分层逻辑**：
+    - 单元测试：验证代码逻辑正确
+    - 集成测试：验证系统可用性
+    - 两者互补，缺一不可
 
 ### C6：MetadataEnricher（规则增强 + 可选 LLM 增强 + 降级）
 - **目标**：实现元数据增强模块：提供规则增强的默认实现（例如从 chunk 文本抽取/推断 title、生成简短 summary、打 tags），并支持可选 LLM 增强（可配置开关 + 失败降级，不阻塞 ingestion）。
