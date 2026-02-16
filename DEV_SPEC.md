@@ -409,7 +409,8 @@ MCP 协议的 Tool 返回格式支持多种内容类型（`content` 数组），
 	- 如 3.1 节所述，本项目以 **LlamaIndex 为主框架**，其内置了对主流 LLM/Embedding Provider 的适配（OpenAI、Azure、Ollama 等）。LlamaIndex 的 `LLM` 和 `Embedding` 抽象类已封装了统一调用接口。
 	- 对于 LlamaIndex 未覆盖的 Provider（如 DeepSeek），可通过其 **OpenAI-Compatible 模式**接入（设置自定义 `api_base`），或引入 LangChain 的对应适配器。
 	- 对于企业级需求，可在其基础上增加统一的 **重试、限流、日志** 中间层，提升生产可靠性，但本项目暂不实现，这里仅提供思路。
-
+	- **Vision LLM 扩展**：针对图像描述生成（Image Captioning）需求，系统扩展了 `BaseVisionLLM` 接口，支持文本+图片的多模态输入。当前实现：
+		- **Azure OpenAI Vision**（GPT-4o/GPT-4-Vision）：企业级合规部署，支持复杂图表解析，与 Azure 生态深度集成。
 #### 3.3.3 检索策略抽象
 
 检索层的可插拔性决定了系统在不同数据规模与查询模式下的适应能力。
@@ -1185,6 +1186,9 @@ Hybrid Search 命中 Chunk（正文含 "[图片描述: 系统采用三层架构.
 │  │ · OpenAI   │ │ · BGE      │ │ · Semantic │ │ · Qdrant   │ │ · CrossEnc │ │ · DeepEval │  │
 │  │ · Ollama   │ │ · Ollama   │ │ · FixedLen │ │ · Pinecone │ │ · LLM      │ │ · Custom   │  │
 │  │ · DeepSeek │ │ · ...      │ │ · ...      │ │ · ...      │ │            │ │            │  │
+│  │ · Vision✨ │ │            │ │            │ │            │ │            │ │            │  │
+│  └────────────┘ └────────────┘ └────────────┘ └────────────┘ └────────────┘ └────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────────────────────┘
 │  └────────────┘ └────────────┘ └────────────┘ └────────────┘ └────────────┘ └────────────┘  │
 └─────────────────────────────────────────────────────────────────────────────────────────────┘
 
@@ -1295,7 +1299,9 @@ smart-knowledge-hub/
 │   │   │   ├── azure_llm.py             # Azure OpenAI 实现
 │   │   │   ├── openai_llm.py            # OpenAI 实现
 │   │   │   ├── ollama_llm.py            # Ollama 本地模型实现
-│   │   │   └── deepseek_llm.py          # DeepSeek 实现
+│   │   │   ├── deepseek_llm.py          # DeepSeek 实现
+│   │   │   ├── base_vision_llm.py       # Vision LLM 抽象基类（支持图像输入）
+│   │   │   └── azure_vision_llm.py      # Azure Vision 实现 (GPT-4o/GPT-4-Vision)
 │   │   │
 │   │   ├── embedding/                   # Embedding 抽象
 │   │   │   ├── __init__.py
@@ -1437,6 +1443,7 @@ smart-knowledge-hub/
 | 抽象接口 | 当前默认实现 | 可替换选项 |
 |---------|------------|----------|
 | `LLMClient` | Azure OpenAI | OpenAI / Ollama / DeepSeek |
+| `VisionLLMClient` | Azure OpenAI Vision (GPT-4o) | OpenAI Vision / Ollama Vision (LLaVA) |
 | `EmbeddingClient` | OpenAI text-embedding-3 | BGE / Ollama 本地模型 |
 | `Loader` | PDF Loader（MarkItDown） | Markdown/HTML/Code Loader 等 |
 | `FileIntegrity` | SHA256 指纹缓存/判定 | SQLite/本地 cache/远端元数据服务 |
@@ -1671,7 +1678,8 @@ observability:
 | B7.6 | ChromaStore 默认实现 | [x] | 2025-02-13 | ✅ upsert/query/filter/delete/count/clear，7 集成测试通过 |
 | B7.7 | LLM Reranker 实现 | [x] | 2025-02-13 | ✅ Prompt-driven 评分 + JSON 解析 + Score 归一化，17 测试通过 |
 | B7.8 | Cross-Encoder Reranker 实现 | [x] | 2025-02-13 | ✅ sentence-transformers Cross-Encoder，12 测试通过 |
-
+| B8 | Vision LLM 抽象接口与工厂集成 | [ ] | - | BaseVisionLLM + VisionLLMFactory/LLMFactory扩展 + 单元测试 |
+| B9 | Azure Vision LLM 实现 | [ ] | - | AzureVisionLLM + 单元测试 + mock测试 |
 #### 阶段 C：Ingestion Pipeline MVP
 
 | 任务编号 | 任务名称 | 状态 | 完成日期 | 备注 |
@@ -2010,6 +2018,37 @@ observability:
   - backend=cross_encoder 时 `RerankerFactory` 可创建。
   - 提供超时/失败回退信号（供 Core 层 `D6` fallback 使用）。
 - **测试方法**：`pytest -q tests/unit/test_cross_encoder_reranker.py`。
+
+### B8：Vision LLM 抽象接口与工厂集成
+- **目标**：定义 `BaseVisionLLM` 抽象接口，扩展 `LLMFactory` 支持 Vision LLM 创建，为 C7 的 ImageCaptioner 提供底层抽象。
+- **修改文件**：
+  - `src/libs/llm/base_vision_llm.py`
+  - `src/libs/llm/llm_factory.py`（扩展 `create_vision_llm` 方法）
+  - `tests/unit/test_vision_llm_factory.py`
+- **实现类/函数**：
+  - `BaseVisionLLM.chat_with_image(text: str, image_path: str | bytes, trace: TraceContext | None = None) -> ChatResponse`
+  - `LLMFactory.create_vision_llm(settings) -> BaseVisionLLM`
+- **验收标准**：
+  - 抽象接口清晰定义多模态输入（文本+图片路径/base64）。
+  - 工厂方法 `create_vision_llm` 能根据配置路由到不同 provider（测试中用 Fake Vision LLM 验证）。
+  - 接口设计支持图片预处理（压缩、格式转换）的扩展点。
+- **测试方法**：`pytest -q tests/unit/test_vision_llm_factory.py`。
+
+### B9：Azure Vision LLM 实现
+- **目标**：实现 `AzureVisionLLM`，支持通过 Azure OpenAI 调用 GPT-4o/GPT-4-Vision-Preview 进行图像理解。
+- **修改文件**：
+  - `src/libs/llm/azure_vision_llm.py`
+  - `tests/unit/test_azure_vision_llm.py`（mock HTTP，不走真实 API）
+- **实现类/函数**：
+  - `AzureVisionLLM(BaseVisionLLM)`：实现 `chat_with_image` 方法
+  - 支持 Azure 特有配置：`azure_endpoint`, `api_version`, `deployment_name`, `api_key`
+- **验收标准**：
+  - provider=azure 且配置 vision_llm 时，`LLMFactory.create_vision_llm()` 可创建 Azure Vision LLM 实例。
+  - 支持图片路径和 base64 两种输入方式。
+  - 图片过大时自动压缩至 `max_image_size` 配置的尺寸（默认2048px）。
+  - API 调用失败时抛出清晰错误，包含 Azure 特有错误码。
+  - mock 测试覆盖：正常调用、图片压缩、超时、认证失败等场景。
+- **测试方法**：`pytest -q tests/unit/test_azure_vision_llm.py`。
 
 ---
 

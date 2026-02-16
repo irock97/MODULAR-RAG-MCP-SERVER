@@ -10,10 +10,13 @@ from typing import Any
 
 import pytest
 
-# Add the project root to the Python path
+# Add the project root and src directories to the Python path
 PROJECT_ROOT = Path(__file__).parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+SRC_ROOT = PROJECT_ROOT / "src"
+
+for path in [str(SRC_ROOT), str(PROJECT_ROOT)]:
+    if path not in sys.path:
+        sys.path.insert(0, path)
 
 
 @pytest.fixture(scope="session")
