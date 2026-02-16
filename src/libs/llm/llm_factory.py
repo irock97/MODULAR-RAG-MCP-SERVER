@@ -37,6 +37,7 @@ from libs.llm.base_vision_llm import (
     VisionLLMConfigurationError,
     UnknownVisionLLMProviderError,
 )
+from libs.llm.azure_vision_llm import AzureVisionLLM
 from observability.logger import get_logger
 
 logger = get_logger(__name__)
@@ -320,6 +321,10 @@ class LLMFactory:
             "model": getattr(llm_config, "model", None),
             "temperature": getattr(llm_config, "temperature", None),
             "max_tokens": getattr(llm_config, "max_tokens", None),
+            # Azure-specific parameters
+            "azure_endpoint": getattr(llm_config, "azure_endpoint", None),
+            "api_version": getattr(llm_config, "azure_api_version", None),
+            "deployment_name": getattr(llm_config, "azure_deployment", None),
         }
 
         # Apply overrides
@@ -337,3 +342,7 @@ class LLMFactory:
         )
 
         return implementation_class(**init_kwargs)
+
+
+# Register Azure Vision provider by default
+LLMFactory.register_vision("azure", AzureVisionLLM)

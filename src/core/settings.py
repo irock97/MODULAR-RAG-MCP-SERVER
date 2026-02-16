@@ -27,6 +27,9 @@ class LLMConfig:
         max_tokens: Maximum tokens to generate
         api_key: API key (should use env var in production)
         base_url: Base URL for API requests
+        azure_endpoint: Azure OpenAI endpoint URL (for Azure provider)
+        azure_api_version: Azure API version (for Azure provider)
+        azure_deployment: Azure deployment name (for Azure provider)
     """
     provider: str | None = None
     model: str | None = None
@@ -34,6 +37,9 @@ class LLMConfig:
     max_tokens: int = 4096
     api_key: str | None = None
     base_url: str | None = None
+    azure_endpoint: str | None = None
+    azure_api_version: str | None = None
+    azure_deployment: str | None = None
 
 
 @dataclass
@@ -333,6 +339,9 @@ def _yaml_to_settings(data: dict[str, Any]) -> Settings:
             max_tokens=data.get("max_tokens", 4096),
             api_key=data.get("api_key"),
             base_url=data.get("base_url"),
+            azure_endpoint=data.get("azure_endpoint"),
+            azure_api_version=data.get("azure_api_version"),
+            azure_deployment=data.get("azure_deployment"),
         )
 
     def _build_embedding(data: dict[str, Any]) -> EmbeddingConfig:
