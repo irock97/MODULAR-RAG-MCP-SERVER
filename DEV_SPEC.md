@@ -1678,7 +1678,7 @@ observability:
 | B7.6 | ChromaStore 默认实现 | [x] | 2025-02-13 | ✅ upsert/query/filter/delete/count/clear，7 集成测试通过 |
 | B7.7 | LLM Reranker 实现 | [x] | 2025-02-13 | ✅ Prompt-driven 评分 + JSON 解析 + Score 归一化，17 测试通过 |
 | B7.8 | Cross-Encoder Reranker 实现 | [x] | 2025-02-13 | ✅ sentence-transformers Cross-Encoder，12 测试通过 |
-| B8 | Vision LLM 抽象接口与工厂集成 | [ ] | - | BaseVisionLLM + VisionLLMFactory/LLMFactory扩展 + 单元测试 |
+| B8 | Vision LLM 抽象接口与工厂集成 | [x] | 2025-02-16 | ✅ BaseVisionLLM + LLMFactory扩展 + 32 测试通过 |
 | B9 | Azure Vision LLM 实现 | [ ] | - | AzureVisionLLM + 单元测试 + mock测试 |
 #### 阶段 C：Ingestion Pipeline MVP
 
