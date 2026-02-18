@@ -1689,8 +1689,8 @@ observability:
 | C3 | Loader 抽象基类与 PDF Loader | [x] | 2025-02-15 | ✅ BaseLoader + PdfLoader (MarkItDown + PyMuPDF) + 28 测试通过 |
 | C4 | Splitter 集成（调用 Libs） | [x] | 2025-02-16 | ✅ DocumentChunker 适配器 + 16 测试通过 |
 | C5 | Transform 基类 + ChunkRefiner | [x] | 2025-02-16 | ✅ BaseTransform + ChunkRefiner + 36 单元测试 + 集成测试 |
-| C6 | MetadataEnricher | [ ] | - | |
-| C7 | ImageCaptioner | [ ] | - | |
+| C6 | MetadataEnricher | [x] | 2025-02-17 | ✅ 规则增强 + LLM增强 + 降级，21 测试通过 |
+| C7 | ImageCaptioner | [x] | 2025-02-17 | ✅ Vision LLM图片描述生成 + 降级，19 测试通过 |
 | C8 | DenseEncoder | [ ] | - | |
 | C9 | SparseEncoder | [ ] | - | |
 | C10 | BatchProcessor | [ ] | - | |
@@ -1750,12 +1750,12 @@ observability:
 |------|---------|--------|------|
 | 阶段 A | 3 | 3 | 100% |
 | 阶段 B | 16 | 16 | 100% |
-| 阶段 C | 15 | 6 | 40% |
+| 阶段 C | 15 | 8 | 53% |
 | 阶段 D | 7 | 0 | 0% |
 | 阶段 E | 6 | 0 | 0% |
 | 阶段 F | 5 | 0 | 0% |
 | 阶段 G | 4 | 0 | 0% |
-| **总计** | **54** | **22** | **41%** |
+| **总计** | **54** | **24** | **44%** |
 
 
 ---
