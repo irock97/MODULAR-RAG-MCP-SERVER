@@ -18,6 +18,7 @@ import pytest
 
 from core.settings import Settings
 from core.trace.trace_context import TraceContext
+from libs.llm.azure_vision_llm import AzureVisionLLM
 from libs.llm.base_vision_llm import (
     BaseVisionLLM,
     ImageInput,
@@ -26,6 +27,7 @@ from libs.llm.base_vision_llm import (
     VisionResponse,
 )
 from libs.llm.llm_factory import LLMFactory
+from libs.llm.qwen_vision_llm import QwenVisionLLM
 
 
 class FakeVisionLLM(BaseVisionLLM):
@@ -426,6 +428,96 @@ class TestVisionResponse:
         assert response.raw_response == {"raw": "data"}
         assert response.usage == {"prompt_tokens": 10, "completion_tokens": 5}
         assert response.image_size == (1024, 768)
+
+
+class TestVisionLLMWithVisionConfig:
+    """Tests for using vision_llm config in create_vision_llm."""
+
+    def setup_method(self):
+        """Re-register vision providers since previous tests may clear them."""
+        # Re-register the default providers
+        LLMFactory.register_vision("azure", AzureVisionLLM)
+        LLMFactory.register_vision("qwen", QwenVisionLLM)
+
+    def teardown_method(self):
+        """Clear vision providers after each test."""
+        LLMFactory.clear_vision()
+
+    def test_create_vision_llm_with_vision_llm_config(self):
+        """Test creating Vision LLM using vision_llm config section."""
+        settings = Settings()
+        # Set up vision_llm config
+        settings.vision_llm = MagicMock()
+        settings.vision_llm.provider = "qwen"
+        settings.vision_llm.model = "qwen-vl-max"
+        settings.vision_llm.api_key = "test-key"
+        settings.vision_llm.base_url = None
+        settings.vision_llm.temperature = None
+        settings.vision_llm.max_tokens = None
+        settings.vision_llm.timeout = 60
+        settings.vision_llm.azure_endpoint = None
+        settings.vision_llm.api_version = None
+        settings.vision_llm.deployment_name = None
+
+        llm = LLMFactory.create_vision_llm(settings)
+
+        assert isinstance(llm, QwenVisionLLM)
+        assert llm.provider_name == "qwen-vision"
+        assert llm._model == "qwen-vl-max"
+
+    def test_create_vision_llm_falls_back_to_llm_config(self):
+        """Test falling back to llm config when vision_llm is not set."""
+        settings = Settings()
+        settings.llm.provider = "qwen"
+        settings.llm.model = "qwen-vl-plus"
+        settings.llm.api_key = "llm-key"
+        settings.llm.base_url = None
+        settings.llm.temperature = None
+        settings.llm.max_tokens = None
+        settings.llm.timeout = None
+        settings.llm.azure_endpoint = None
+        settings.llm.azure_api_version = None
+        settings.llm.azure_deployment = None
+        # No vision_llm set
+
+        llm = LLMFactory.create_vision_llm(settings)
+
+        assert isinstance(llm, QwenVisionLLM)
+        assert llm._model == "qwen-vl-plus"
+
+    def test_create_vision_llm_vision_config_takes_precedence(self):
+        """Test that vision_llm config takes precedence over llm config."""
+        settings = Settings()
+        settings.llm.provider = "openai"
+        settings.llm.model = "gpt-4o"
+        settings.llm.api_key = "llm-key"
+        # Set up vision_llm to override
+        settings.vision_llm = MagicMock()
+        settings.vision_llm.provider = "qwen"
+        settings.vision_llm.model = "qwen-vl-max"
+        settings.vision_llm.api_key = "vision-key"
+        settings.vision_llm.base_url = None
+        settings.vision_llm.temperature = None
+        settings.vision_llm.max_tokens = None
+        settings.vision_llm.timeout = None
+        settings.vision_llm.azure_endpoint = None
+        settings.vision_llm.api_version = None
+        settings.vision_llm.deployment_name = None
+
+        llm = LLMFactory.create_vision_llm(settings)
+
+        assert isinstance(llm, QwenVisionLLM)
+        assert llm._model == "qwen-vl-max"
+
+    def test_create_vision_llm_error_no_provider(self):
+        """Test error when no provider is configured."""
+        settings = Settings()
+        # No llm.provider and no vision_llm
+        settings.llm = MagicMock()
+        settings.llm.provider = None
+
+        with pytest.raises(Exception, match="Vision LLM provider is not configured"):
+            LLMFactory.create_vision_llm(settings)
 
 
 if __name__ == "__main__":

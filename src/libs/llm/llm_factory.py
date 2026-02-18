@@ -38,6 +38,7 @@ from libs.llm.base_vision_llm import (
     UnknownVisionLLMProviderError,
 )
 from libs.llm.azure_vision_llm import AzureVisionLLM
+from libs.llm.qwen_vision_llm import QwenVisionLLM
 from observability.logger import get_logger
 
 logger = get_logger(__name__)
@@ -290,14 +291,46 @@ class LLMFactory:
             >>> settings = load_settings()
             >>> vision_llm = LLMFactory.create_vision_llm(settings)
         """
-        llm_config = settings.llm
+        # Check if vision_llm config exists with a provider, otherwise fall back to llm config
+        vision_config = None
+        if hasattr(settings, 'vision_llm') and settings.vision_llm:
+            vision_provider = getattr(settings.vision_llm, 'provider', None)
+            if vision_provider:  # Only use vision_llm if provider is set
+                vision_config = settings.vision_llm
 
-        # Get provider name
-        provider = (llm_config.provider or "").lower()
+        if vision_config:
+            provider = (getattr(vision_config, 'provider', None) or "").lower()
+            api_key = getattr(vision_config, 'api_key', None)
+            model = getattr(vision_config, 'model', None)
+            base_url = getattr(vision_config, 'base_url', None)
+            temperature = getattr(vision_config, 'temperature', None)
+            max_tokens = getattr(vision_config, 'max_tokens', None)
+            timeout = getattr(vision_config, 'timeout', None)
+            max_image_size = getattr(vision_config, 'max_image_size', None)
+            # Azure-specific
+            azure_endpoint = getattr(vision_config, 'azure_endpoint', None)
+            azure_api_version = getattr(vision_config, 'api_version', None)
+            azure_deployment = getattr(vision_config, 'deployment_name', None)
+        else:
+            # Fall back to llm config
+            llm_config = settings.llm
+            provider = (llm_config.provider or "").lower()
+            api_key = getattr(llm_config, 'api_key', None)
+            model = getattr(llm_config, 'model', None)
+            base_url = getattr(llm_config, 'base_url', None)
+            temperature = getattr(llm_config, 'temperature', None)
+            max_tokens = getattr(llm_config, 'max_tokens', None)
+            timeout = getattr(llm_config, 'timeout', None)
+            max_image_size = getattr(llm_config, 'max_image_size', None)
+            # Azure-specific
+            azure_endpoint = getattr(llm_config, 'azure_endpoint', None)
+            azure_api_version = getattr(llm_config, 'azure_api_version', None)
+            azure_deployment = getattr(llm_config, 'azure_deployment', None)
+
         if not provider:
             raise VisionLLMConfigurationError(
-                "LLM provider is not configured. "
-                "Set 'llm.provider' in settings.yaml"
+                "Vision LLM provider is not configured. "
+                "Set 'vision_llm.provider' or 'llm.provider' in settings.yaml"
             )
 
         # Check if provider is registered for vision
@@ -316,15 +349,18 @@ class LLMFactory:
 
         # Build constructor arguments from settings
         init_kwargs: dict[str, Any] = {
-            "api_key": getattr(llm_config, "api_key", None),
-            "base_url": getattr(llm_config, "base_url", None),
-            "model": getattr(llm_config, "model", None),
-            "temperature": getattr(llm_config, "temperature", None),
-            "max_tokens": getattr(llm_config, "max_tokens", None),
+            "api_key": api_key,
+            "base_url": base_url,
+            "model": model,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "timeout": timeout,
             # Azure-specific parameters
-            "azure_endpoint": getattr(llm_config, "azure_endpoint", None),
-            "api_version": getattr(llm_config, "azure_api_version", None),
-            "deployment_name": getattr(llm_config, "azure_deployment", None),
+            "azure_endpoint": azure_endpoint,
+            "api_version": azure_api_version,
+            "deployment_name": azure_deployment,
+            # Image compression parameter
+            "max_image_size": max_image_size,
         }
 
         # Apply overrides
@@ -338,7 +374,7 @@ class LLMFactory:
         # Create the instance
         logger.info(
             f"Creating Vision LLM instance: provider={provider}, "
-            f"model={getattr(llm_config, 'model', 'N/A')}"
+            f"model={model or 'N/A'}"
         )
 
         return implementation_class(**init_kwargs)
@@ -346,3 +382,6 @@ class LLMFactory:
 
 # Register Azure Vision provider by default
 LLMFactory.register_vision("azure", AzureVisionLLM)
+
+# Register Qwen Vision provider by default
+LLMFactory.register_vision("qwen", QwenVisionLLM)

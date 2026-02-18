@@ -147,6 +147,52 @@ class ChunkRefinerConfig:
 
 
 @dataclass
+class MetadataEnricherConfig:
+    """Metadata enrichment configuration.
+
+    Attributes:
+        use_llm: Whether to use LLM-based metadata extraction
+        prompt_path: Optional path to custom prompt template
+    """
+    use_llm: bool = False
+    prompt_path: str | None = None
+
+
+@dataclass
+class VisionLLMConfig:
+    """Vision LLM configuration.
+
+    Attributes:
+        enabled: Whether vision capabilities are enabled
+        provider: Vision LLM provider type (qwen, azure, openai) - REQUIRED
+        model: Model name (qwen-vl-max, qwen-vl-plus, gpt-4o)
+        api_key: API key for the vision provider
+        base_url: Base URL for API requests
+        max_image_size: Maximum image dimension (width, height)
+        timeout: Request timeout in seconds
+    """
+    enabled: bool = False
+    provider: str | None = None
+    model: str | None = None
+    api_key: str | None = None
+    base_url: str | None = None
+    max_image_size: int = 2048
+    timeout: float = 60.0
+
+
+@dataclass
+class ImageCaptionerConfig:
+    """Image captioning configuration.
+
+    Attributes:
+        enabled: Whether to enable image caption generation
+        prompt_path: Optional path to custom captioning prompt template
+    """
+    enabled: bool = False
+    prompt_path: str | None = None
+
+
+@dataclass
 class IngestionConfig:
     """Ingestion pipeline configuration.
 
@@ -156,12 +202,16 @@ class IngestionConfig:
         splitter: Splitter type (recursive, semantic, fixed_length)
         batch_size: Batch size for processing
         chunk_refiner: Chunk refinement configuration
+        metadata_enricher: Metadata enrichment configuration
+        image_captioner: Image captioning configuration
     """
     chunk_size: int = 1000
     chunk_overlap: int = 200
     splitter: str = "recursive"
     batch_size: int = 100
     chunk_refiner: ChunkRefinerConfig = field(default_factory=ChunkRefinerConfig)
+    metadata_enricher: MetadataEnricherConfig = field(default_factory=MetadataEnricherConfig)
+    image_captioner: ImageCaptionerConfig = field(default_factory=ImageCaptionerConfig)
 
 
 @dataclass
@@ -173,6 +223,7 @@ class Settings:
 
     Attributes:
         llm: LLM configuration
+        vision_llm: Vision LLM configuration
         embedding: Embedding configuration
         vector_store: Vector store configuration
         retrieval: Retrieval configuration
@@ -182,6 +233,7 @@ class Settings:
         ingestion: Ingestion configuration
     """
     llm: LLMConfig = field(default_factory=LLMConfig)
+    vision_llm: VisionLLMConfig = field(default_factory=VisionLLMConfig)
     embedding: EmbeddingConfig = field(default_factory=EmbeddingConfig)
     vector_store: VectorStoreConfig = field(default_factory=VectorStoreConfig)
     retrieval: RetrievalConfig = field(default_factory=RetrievalConfig)
@@ -331,6 +383,17 @@ def _yaml_to_settings(data: dict[str, Any]) -> Settings:
     Returns:
         Settings object
     """
+    def _build_vision_llm(data: dict[str, Any]) -> VisionLLMConfig:
+        return VisionLLMConfig(
+            enabled=data.get("enabled", False),
+            provider=data.get("provider"),
+            model=data.get("model"),
+            api_key=data.get("api_key"),
+            base_url=data.get("base_url"),
+            max_image_size=data.get("max_image_size", 2048),
+            timeout=data.get("timeout", 60.0),
+        )
+
     def _build_llm(data: dict[str, Any]) -> LLMConfig:
         return LLMConfig(
             provider=data.get("provider", "openai"),
@@ -396,6 +459,18 @@ def _yaml_to_settings(data: dict[str, Any]) -> Settings:
             prompt_path=data.get("prompt_path"),
         )
 
+    def _build_metadata_enricher(data: dict[str, Any]) -> MetadataEnricherConfig:
+        return MetadataEnricherConfig(
+            use_llm=data.get("use_llm", False),
+            prompt_path=data.get("prompt_path"),
+        )
+
+    def _build_image_captioner(data: dict[str, Any]) -> ImageCaptionerConfig:
+        return ImageCaptionerConfig(
+            enabled=data.get("enabled", False),
+            prompt_path=data.get("prompt_path"),
+        )
+
     def _build_ingestion(data: dict[str, Any]) -> IngestionConfig:
         return IngestionConfig(
             chunk_size=data.get("chunk_size", 1000),
@@ -403,10 +478,13 @@ def _yaml_to_settings(data: dict[str, Any]) -> Settings:
             splitter=data.get("splitter", "recursive"),
             batch_size=data.get("batch_size", 100),
             chunk_refiner=_build_chunk_refiner(data.get("chunk_refiner", {})),
+            metadata_enricher=_build_metadata_enricher(data.get("metadata_enricher", {})),
+            image_captioner=_build_image_captioner(data.get("image_captioner", {})),
         )
 
     return Settings(
         llm=_build_llm(data.get("llm", {})),
+        vision_llm=_build_vision_llm(data.get("vision_llm", {})),
         embedding=_build_embedding(data.get("embedding", {})),
         vector_store=_build_vector_store(data.get("vector_store", {})),
         retrieval=_build_retrieval(data.get("retrieval", {})),

@@ -84,13 +84,24 @@ ingestion:
 # Vision LLM Configuration (for Image Captioning)
 # =============================================================================
 vision_llm:
-  enabled: false  # Set to true to enable vision capabilities
-  provider: "openai"  # Options: openai, azure, ollama
-  model: "gpt-4o"  # Options: gpt-4o, gpt-4-vision-preview (OpenAI), llava (Ollama)
-  # Azure-specific settings (if provider is azure):
-  # azure_endpoint: ""
-  # deployment_name: "gpt-4o"
-  # api_version: "2024-02-15-preview"
-  # Ollama-specific settings (if provider is ollama):
-  # base_url: "http://localhost:11434"
+  enabled: true  # Set to true to enable vision capabilities
+  provider: "qwen"  # Options: qwen, azure, openai, ollama
+  model: "qwen-vl-max"  # Options: qwen-vl-max, qwen-vl-plus (Qwen), gpt-4o (OpenAI/Azure)
   max_image_size: 2048  # Max dimension (width/height) for image compression
+  timeout: 60  # Request timeout in seconds
+
+  # OpenAI-specific (if provider is openai):
+  # api_key: ${OPENAI_API_KEY}
+
+  # Azure-specific (if provider is azure):
+  # api_key: ${AZURE_OPENAI_API_KEY}
+  # azure_endpoint: ""  # e.g., https://my-resource.openai.azure.com/
+  # deployment_name: "gpt-4o"  # Deployment name
+  # api_version: "2024-02-15-preview"
+
+  # Qwen-specific (if provider is qwen):
+#  api_key: {}
+#  base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"  # API endpoint
+
+  # Ollama-specific (if provider is ollama):
+  # base_url: "http://localhost:11434"
