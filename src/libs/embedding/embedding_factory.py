@@ -202,6 +202,13 @@ def _register_default_providers() -> None:
     This function is called when the module is imported.
     It safely handles missing dependencies.
     """
+    # Register Qwen provider
+    try:
+        from libs.embedding.qwen_embedding import DashScopeEmbedding
+        EmbeddingFactory.register("qwen", DashScopeEmbedding)
+    except ImportError:
+        pass
+
     # Register Ollama provider
     try:
         from libs.embedding.ollama_embedding import OllamaEmbedding

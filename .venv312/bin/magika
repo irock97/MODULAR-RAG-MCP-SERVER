@@ -1,0 +1,6 @@
+#!/Users/jiangjinheng/workspace/MODULAR-RAG-MCP-SERVER/.venv312/bin/python3.12
+import sys
+from magika.cli.magika_rust_client_not_found_warning import main
+if __name__ == '__main__':
+    sys.argv[0] = sys.argv[0].removesuffix('.exe')
+    sys.exit(main())

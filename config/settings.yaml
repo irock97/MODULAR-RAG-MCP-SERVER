@@ -19,10 +19,15 @@ llm:
 # Embedding Configuration
 # =============================================================================
 embedding:
-  provider: "openai"  # Options: openai, local
-  model: "text-embedding-3-small"
+  provider: "qwen"  # Options: openai, qwen, local
+  model: "text-embedding-v4"
   dimensions: 1536
   # api_key: ${OPENAI_API_KEY}
+
+  # Qwen-specific (if provider is qwen):
+  # model: text-embedding-v4  # Options: text-embedding-v4, text-embedding-v3
+#  api_key: {}
+#  base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
 
 # =============================================================================
 # Vector Store Configuration
