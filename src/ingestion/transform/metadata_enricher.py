@@ -65,16 +65,9 @@ class MetadataEnricher(BaseTransform):
         self._llm = llm
         self._prompt_path = Path(prompt_path) if prompt_path else None
 
-        # Check if LLM is enabled
-        metadata_enricher_config = getattr(settings, "ingestion", None)
-        if metadata_enricher_config is not None:
-            enricher_config = getattr(metadata_enricher_config, "metadata_enricher", None)
-            if enricher_config is not None:
-                self._use_llm = getattr(enricher_config, "use_llm", False)
-            else:
-                self._use_llm = False
-        else:
-            self._use_llm = False
+        # Check if LLM is enabled via config
+        enricher_config = settings.ingestion.metadata_enricher
+        self._use_llm = enricher_config.use_llm
 
         self._prompt_template: str | None = None
 
