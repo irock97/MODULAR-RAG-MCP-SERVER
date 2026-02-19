@@ -1691,11 +1691,11 @@ observability:
 | C5 | Transform 基类 + ChunkRefiner | [x] | 2025-02-16 | ✅ BaseTransform + ChunkRefiner + 36 单元测试 + 集成测试 |
 | C6 | MetadataEnricher | [x] | 2025-02-17 | ✅ 规则增强 + LLM增强 + 降级，21 测试通过 |
 | C7 | ImageCaptioner | [x] | 2025-02-17 | ✅ Vision LLM图片描述生成 + 降级，19 测试通过 |
-| C8 | DenseEncoder | [ ] | - | |
-| C9 | SparseEncoder | [ ] | - | |
+| C8 | DenseEncoder | [x] | 2025-02-19 | ✅ batch_size 修复 + TF-IDF 移除 + 581 测试 |
+| C9 | SparseEncoder | [x] | 2025-02-19 | ✅ TF only + C11 负责 IDF + 25 测试 |
 | C10 | BatchProcessor | [ ] | - | |
-| C11 | VectorUpserter | [ ] | - | |
-| C12 | BM25Indexer | [ ] | - | |
+| C11 | BM25Indexer（倒排索引+IDF计算） | [ ] | - | ⚠️ 调整：与C12交换顺序 |
+| C12 | VectorUpserter（幂等upsert） | [ ] | - | ⚠️ 调整：与C11交换顺序 |
 | C13 | ImageStorage | [ ] | - | |
 | C14 | Pipeline 编排（MVP 串起来） | [ ] | - | |
 | C15 | 脚本入口 ingest.py | [ ] | - | |
@@ -1755,7 +1755,7 @@ observability:
 | 阶段 E | 6 | 0 | 0% |
 | 阶段 F | 5 | 0 | 0% |
 | 阶段 G | 4 | 0 | 0% |
-| **总计** | **56** | **25** | **45%** |
+| **总计** | **56** | **28** | **50%** |
 
 
 ---
@@ -2276,21 +2276,49 @@ observability:
 - **验收标准**：batch_size=2 时对 5 chunks 分成 3 批，且顺序稳定。
 - **测试方法**：`pytest -q tests/unit/test_batch_processor.py`。
 
-### C11：VectorUpserter（幂等 upsert 契约）
-- **目标**：实现 `vector_upserter.py`，生成稳定 `chunk_id`（hash(source_path + section_path + content_hash)）。
-- **修改文件**：
-  - `src/ingestion/storage/vector_upserter.py`
-  - `tests/unit/test_vector_upserter_idempotency.py`
-- **验收标准**：同一 chunk 两次 upsert 产生相同 id；内容变更 id 变更。
-- **测试方法**：`pytest -q tests/unit/test_vector_upserter_idempotency.py`。
 
-### C12：BM25Indexer（倒排索引落地）
-- **目标**：实现 `bm25_indexer.py`：把 sparse encoder 输出落盘到 `data/db/bm25/`（文件结构自行定义但需可重建）。
+---
+
+**━━━━ 存储阶段分界线：以下任务负责将编码结果持久化 ━━━━**
+
+> **说明**：C8-C10完成了Dense和Sparse的编码工作，C11-C13负责将编码结果存储到不同的后端。
+> - **C11 (BM25Indexer)**：处理Sparse编码结果 → 构建倒排索引 → 存储到文件系统
+> - **C12 (VectorUpserter)**：处理Dense编码结果 → 生成稳定ID → 存储到向量数据库
+> - **C13 (ImageStorage)**：处理图片数据 → 文件存储 + 索引映射
+
+---
+
+### C11：BM25Indexer（倒排索引构建与持久化）
+- **目标**：实现 `bm25_indexer.py`：接收 SparseEncoder 的term statistics输出，计算IDF，构建倒排索引，并持久化到 `data/db/bm25/`。
+- **核心功能**：
+  - 计算 IDF (Inverse Document Frequency)：`IDF(term) = log((N - df + 0.5) / (df + 0.5))`
+  - 构建倒排索引结构：`{term: {idf, postings: [{chunk_id, tf, doc_length}]}}`
+  - 索引序列化与加载（支持增量更新与重建）
 - **修改文件**：
   - `src/ingestion/storage/bm25_indexer.py`
   - `tests/unit/test_bm25_indexer_roundtrip.py`
-- **验收标准**：build 后能 load 并对同一语料查询返回稳定 top ids。
+- **验收标准**：
+  - build 后能 load 并对同一语料查询返回稳定 top ids
+  - IDF计算准确（可用已知语料对比验证）
+  - 支持索引重建与增量更新
 - **测试方法**：`pytest -q tests/unit/test_bm25_indexer_roundtrip.py`。
+- **备注**：本任务完成Sparse路径的最后一环，为D3 (SparseRetriever) 提供可查询的BM25索引。
+
+### C12：VectorUpserter（向量存储与幂等性保证）
+- **目标**：实现 `vector_upserter.py`：接收 DenseEncoder 的向量输出，生成稳定的 `chunk_id`，并调用 VectorStore 进行幂等写入。
+- **核心功能**：
+  - 生成确定性 chunk_id：`hash(source_path + chunk_index + content_hash[:8])`
+  - 调用 `BaseVectorStore.upsert()` 写入向量数据库
+  - 保证幂等性：同一内容重复写入不产生重复记录
+- **修改文件**：
+  - `src/ingestion/storage/vector_upserter.py`
+  - `tests/unit/test_vector_upserter_idempotency.py`
+- **验收标准**：
+  - 同一 chunk 两次 upsert 产生相同 id
+  - 内容变更时 id 变更
+  - 支持批量 upsert 且保持顺序
+- **测试方法**：`pytest -q tests/unit/test_vector_upserter_idempotency.py`。
+- **备注**：本任务完成Dense路径的最后一环，为D2 (DenseRetriever) 提供可查询的向量数据库。
 
 ### C13：ImageStorage（图片文件存储与索引表契约）
 - **目标**：实现 `image_storage.py`：保存图片到 `data/images/{collection}/`，并记录 image_id→path 映射（可先用 JSON/SQLite）。

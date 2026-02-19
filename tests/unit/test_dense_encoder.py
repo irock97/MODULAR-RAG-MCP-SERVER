@@ -354,15 +354,21 @@ class TestDenseEncoderIntegration:
     """Integration tests for DenseEncoder with real-like scenarios."""
 
     def test_document_chunks_to_records(self):
+        """Test converting document chunks to chunk records."""
+
+
         """Test converting document chunks to chunk records using real config."""
-        from core.settings import load_settings
-        from libs.embedding.embedding_factory import EmbeddingFactory
+        # from core.settings import load_settings
+        # from libs.embedding.embedding_factory import EmbeddingFactory
+        #
+        # # Load settings from config
+        # settings = load_settings("config/settings.yaml")
+        #
+        # # Create embedding instance from settings
+        # embedding = EmbeddingFactory.create(settings)
 
-        # Load settings from config
-        settings = load_settings("config/settings.yaml")
-
-        # Create embedding instance from settings
-        embedding = EmbeddingFactory.create(settings)
+        # Use MockEmbedding that doesn't require API key
+        embedding = MockEmbedding(provider_name="mock", dimensions=1536)
 
         encoder = DenseEncoder(embedding)
 
