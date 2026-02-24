@@ -7,13 +7,13 @@
 # LLM Configuration
 # =============================================================================
 llm:
-  provider: "openai"  # Options: openai, azure, ollama, deepseek
-  model: "gpt-4o-mini"
+  provider: "qwen"  # Options: openai, azure, ollama, deepseek, qwen
+  model: "qwen-turbo"
   temperature: 0.0
   max_tokens: 4096
   # Provider-specific settings (uncomment as needed)
-  # api_key: ${OPENAI_API_KEY}  # Use environment variable
-  # base_url: "https://api.openai.com/v1"
+  # api_key: ${DASHSCOPE_API_KEY}  # Use environment variable
+  # base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
 
 # =============================================================================
 # Embedding Configuration
@@ -83,6 +83,16 @@ ingestion:
   chunk_overlap: 200
   splitter: "recursive"  # Options: recursive, semantic, fixed_length
   batch_size: 100
+
+  # Chunk Refiner Configuration (C5)
+  chunk_refiner:
+    use_llm: false  # Set to true to enable LLM-based refinement (requires LLM config)
+    # When use_llm is false or LLM call fails, falls back to rule-based refinement
+
+  # Metadata Enricher Configuration (C6)
+  metadata_enricher:
+    use_llm: false  # Set to true to enable LLM-based enrichment (requires LLM config)
+    # When use_llm is false or LLM call fails, falls back to rule-based enrichment
 
 
 # =============================================================================

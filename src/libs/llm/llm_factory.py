@@ -38,6 +38,7 @@ from libs.llm.base_vision_llm import (
     UnknownVisionLLMProviderError,
 )
 from libs.llm.azure_vision_llm import AzureVisionLLM
+from libs.llm.qwen_llm import QwenLLM
 from libs.llm.qwen_vision_llm import QwenVisionLLM
 from observability.logger import get_logger
 
@@ -385,3 +386,6 @@ LLMFactory.register_vision("azure", AzureVisionLLM)
 
 # Register Qwen Vision provider by default
 LLMFactory.register_vision("qwen", QwenVisionLLM)
+
+# Register Qwen text LLM provider by default
+LLMFactory.register("qwen", QwenLLM)
