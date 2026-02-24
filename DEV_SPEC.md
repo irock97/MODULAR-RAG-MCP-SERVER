@@ -185,19 +185,49 @@
 	- **前置去重 (Early Exit / File Integrity Check)**：
 		- 机制：在解析文件前，计算原始文件的 SHA256 哈希指纹。
 		- 动作：检索 `ingestion_history` 表，若发现相同 Hash 且状态为 `success` 的记录，则认定该文件未发生变更，直接跳过后续所有处理（解析、切分、LLM重写），实现**零成本 (Zero-Cost)** 的增量更新。
+		- **存储方案**（初期实现，可插拔）：
+			- **默认选择：SQLite**，存储于 `data/db/ingestion_history.db`
+			- **表结构**：
+				```sql
+				CREATE TABLE ingestion_history (
+				    file_hash TEXT PRIMARY KEY,
+				    file_path TEXT NOT NULL,
+				    file_size INTEGER,
+				    status TEXT NOT NULL CHECK(status IN ('success', 'failed', 'processing')),
+				    processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+				    error_msg TEXT,
+				    chunk_count INTEGER
+				);
+				CREATE INDEX idx_status ON ingestion_history(status);
+				CREATE INDEX idx_processed_at ON ingestion_history(processed_at);
+				```
+			- **查询逻辑**：`SELECT status FROM ingestion_history WHERE file_hash = ? AND status = 'success'`
+			- **替换路径**：后续可升级为 Redis（分布式缓存）或 PostgreSQL（企业级中心化存储）
+	
+	> **📌 持久化存储架构统一说明**
+	> 
+	> 本项目在多个核心模块中采用 **SQLite** 作为轻量级持久化存储方案，避免引入重量级数据库依赖，保持本地优先（Local-First）的设计理念：
+	> 
+	> | 存储模块 | 数据库文件 | 用途 | 表结构关键字段 |
+	> |---------|-----------|------|---------------|
+	> | **文件完整性检查** | `data/db/ingestion_history.db` | 记录已处理文件的 SHA256 哈希，实现增量摄取 | `file_hash`, `status`, `processed_at` |
+	> | **图片索引映射** | `data/db/image_index.db` | 记录 image_id → 文件路径映射，支持图片检索与引用 | `image_id`, `file_path`, `collection` |
+	> | **BM25 索引元数据** | `data/db/bm25/` | 存储倒排索引和 IDF 统计信息（未来可扩展用 SQLite） | 当前使用 pickle，可迁移至 SQLite |
+	> 
+	> **设计优势**：
+	> - **零依赖部署**：无需安装 MySQL/PostgreSQL 等数据库服务，`pip install` 即可运行
+	> - **并发安全**：WAL (Write-Ahead Logging) 模式支持多进程安全读写
+	> - **持久化保证**：摄取历史和索引映射在进程重启后自动恢复，避免重复计算
+	> - **架构一致性**：所有 SQLite 模块遵循相同的初始化、查询与错误处理模式，便于维护与扩展
+	> 
+	> **升级路径**：当系统规模扩展至分布式场景时，可通过统一的抽象接口将 SQLite 替换为 PostgreSQL 或 Redis，无需修改上层业务逻辑。
+	
 	- **解析与标准化**：
 		- 当前范围：**仅实现 PDF -> canonical Markdown 子集** 的转换。
 	- 技术选型（Python PDF -> Markdown）：
 		- **首选：MarkItDown**（作为默认 PDF 解析/转换引擎）。优点是直接产出 Markdown 形态文本，便于与后续 `RecursiveCharacterTextSplitter` 的 separators 配合。
 	- 输出标准 `Document`：`id|source|text(markdown)|metadata`。metadata 至少包含 `source_path`, `doc_type`, `title/heading_outline`, `page/slide`（如适用）, `images`（图片引用列表）。
 	- Loader 不负责切分：只做“格式统一 + 结构抽取 + 引用收集”，确保切分策略可独立迭代与度量。
-
-- Splitter（LangChain 负责切分；独立、可控）
-	- **实现方案：使用 LangChain 的 `RecursiveCharacterTextSplitter` 进行切分。**
-		- 优势：该方法对 Markdown 文档的结构（标题、段落、列表、代码块）有天然的适配性，能够通过配置语义断点（Separators）实现高质量、语义完整的切块。
-	- Splitter 输入：Loader 产出的 Markdown `Document`。
-	- Splitter 输出：若干 `Chunk`（或 Document-like chunks），每个 chunk 必须携带稳定的定位信息与来源信息：`source`, `chunk_index`, `start_offset/end_offset`（或等价定位字段）。
-
 - Transform & Enrichment（结构转换与深度增强）
 	本阶段是 ETL 管道的核心“智力”环节，负责将 Splitter 产出的非结构化文本块转化为结构化、富语义的智能切片（Smart Chunk）。
 	- **结构转换 (Structure Transformation)**：将原始的 `String` 类型数据转化为强类型的 `Record/Object`，为下游检索提供字段级支持。
@@ -1353,12 +1383,20 @@ smart-knowledge-hub/
 │   ├── documents/                       # 原始文档存放
 │   │   └── {collection}/                # 按集合分类
 │   ├── images/                          # 提取的图片存放
-│   │   └── {collection}/                # 按集合分类
-│   └── db/                              # 数据库文件
-│       ├── chroma/                      # Chroma 向量库
-│       └── bm25/                        # BM25 索引
+│   │   └── {collection}/                # 按集合分类（实际存储在 {doc_hash}/ 子目录下）
+│   └── db/                              # 数据库与索引文件目录
+│       ├── ingestion_history.db         # 文件完整性历史记录 (SQLite)
+│       │                                # 表结构：file_hash, file_path, status, processed_at, error_msg
+│       │                                # 用途：增量摄取，避免重复处理未变更文件
+│       ├── image_index.db               # 图片索引映射 (SQLite)
+│       │                                # 表结构：image_id, file_path, collection, doc_hash, page_num
+│       │                                # 用途：快速查询 image_id → 本地文件路径，支持图片检索与引用
+│       ├── chroma/                      # Chroma 向量库目录
+│       │                                # 存储 Dense Vector、Sparse Vector 与 Chunk Metadata
+│       └── bm25/                        # BM25 索引目录
+│                                        # 存储倒排索引与 IDF 统计信息（当前使用 pickle）
 │
-├── cache/                               # 缓存目录
+├── cache/                               
 │   ├── embeddings/                      # Embedding 缓存 (按内容哈希)
 │   ├── captions/                        # 图片描述缓存
 │   └── processing/                      # 处理状态缓存 (文件哈希/Chunk 哈希)
@@ -1696,7 +1734,7 @@ observability:
 | C10 | BatchProcessor | [x] | 2025-02-19 | ✅ 批处理 + 顺序稳定 + 15 测试 |
 | C11 | BM25Indexer | [x] | 2025-02-19 | ✅ IDF + 倒排索引 + 序列化 + 19 测试 |
 | C12 | VectorUpserter（幂等upsert） | [x] | 2026-02-24 | ✅ 确定性ID + 幂等upsert + 13 测试 |
-| C13 | ImageStorage | [ ] | - | |
+| C13 | ImageStorage | [x] | 2026-02-24 | ✅ 图片存储 + SQLite索引 + 17 测试 |
 | C14 | Pipeline 编排（MVP 串起来） | [ ] | - | |
 | C15 | 脚本入口 ingest.py | [ ] | - | |
 
@@ -1750,12 +1788,12 @@ observability:
 |------|---------|--------|------|
 | 阶段 A | 3 | 3 | 100% |
 | 阶段 B | 16 | 16 | 100% |
-| 阶段 C | 15 | 12 | 80% |
+| 阶段 C | 15 | 13 | 87% |
 | 阶段 D | 7 | 0 | 0% |
 | 阶段 E | 6 | 0 | 0% |
 | 阶段 F | 5 | 0 | 0% |
 | 阶段 G | 4 | 0 | 0% |
-| **总计** | **56** | **30** | **54%** |
+| **总计** | **56** | **31** | **55%** |
 
 
 ---
@@ -2321,11 +2359,28 @@ observability:
 - **备注**：本任务完成Dense路径的最后一环，为D2 (DenseRetriever) 提供可查询的向量数据库。
 
 ### C13：ImageStorage（图片文件存储与索引表契约）
-- **目标**：实现 `image_storage.py`：保存图片到 `data/images/{collection}/`，并记录 image_id→path 映射（可先用 JSON/SQLite）。
+- **目标**：实现 `image_storage.py`：保存图片到 `data/images/{collection}/`，并使用 **SQLite** 记录 image_id→path 映射。
 - **修改文件**：
   - `src/ingestion/storage/image_storage.py`
   - `tests/unit/test_image_storage.py`
-- **验收标准**：保存后文件存在；查找 image_id 返回正确路径。
+- **验收标准**：保存后文件存在；查找 image_id 返回正确路径；映射关系持久化在 `data/db/image_index.db`。
+- **技术方案**：
+  - 复用项目已有的 SQLite 架构模式（参考 `file_integrity.py` 的 `SQLiteIntegrityChecker`）
+  - 数据库表结构：
+    ```sql
+    CREATE TABLE image_index (
+        image_id TEXT PRIMARY KEY,
+        file_path TEXT NOT NULL,
+        collection TEXT,
+        doc_hash TEXT,
+        page_num INTEGER,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX idx_collection ON image_index(collection);
+    CREATE INDEX idx_doc_hash ON image_index(doc_hash);
+    ```
+  - 提供并发安全访问（WAL 模式）
+  - 支持按 collection 批量查询
 - **测试方法**：`pytest -q tests/unit/test_image_storage.py`。
 
 ### C14：Pipeline 编排（MVP 串起来）

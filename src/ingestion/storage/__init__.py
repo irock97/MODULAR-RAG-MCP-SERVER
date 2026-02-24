@@ -1,5 +1,6 @@
-# Storage - Vector upsert and BM25 indexing
+# Storage - Vector upsert, BM25 indexing, and image storage
 from ingestion.storage.bm25_indexer import BM25Indexer
+from ingestion.storage.image_storage import ImageStorage
 from ingestion.storage.vector_upserter import VectorUpserter
 
-__all__ = ["BM25Indexer", "VectorUpserter"]
+__all__ = ["BM25Indexer", "ImageStorage", "VectorUpserter"]
