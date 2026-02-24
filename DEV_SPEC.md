@@ -1695,7 +1695,7 @@ observability:
 | C9 | SparseEncoder | [x] | 2025-02-19 | ✅ TF only + C11 负责 IDF + 25 测试 |
 | C10 | BatchProcessor | [x] | 2025-02-19 | ✅ 批处理 + 顺序稳定 + 15 测试 |
 | C11 | BM25Indexer | [x] | 2025-02-19 | ✅ IDF + 倒排索引 + 序列化 + 19 测试 |
-| C12 | VectorUpserter（幂等upsert） | [ ] | - | ⚠️ 调整：与C11交换顺序 |
+| C12 | VectorUpserter（幂等upsert） | [x] | 2026-02-24 | ✅ 确定性ID + 幂等upsert + 13 测试 |
 | C13 | ImageStorage | [ ] | - | |
 | C14 | Pipeline 编排（MVP 串起来） | [ ] | - | |
 | C15 | 脚本入口 ingest.py | [ ] | - | |
@@ -1750,7 +1750,7 @@ observability:
 |------|---------|--------|------|
 | 阶段 A | 3 | 3 | 100% |
 | 阶段 B | 16 | 16 | 100% |
-| 阶段 C | 15 | 11 | 73% |
+| 阶段 C | 15 | 12 | 80% |
 | 阶段 D | 7 | 0 | 0% |
 | 阶段 E | 6 | 0 | 0% |
 | 阶段 F | 5 | 0 | 0% |
