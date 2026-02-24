@@ -121,32 +121,23 @@ class SparseEncoder:
         ]
         return tokens
 
-    def _compute_tf(self, text: str) -> dict[str, float]:
-        """Compute term frequencies (TF) for a document.
+    def _compute_term_counts(self, text: str) -> dict[str, int]:
+        """Compute raw term counts for a document.
 
-        TF = term_count / max_term_count (normalized by max frequency)
+        This returns raw term frequencies (not normalized) for use by BM25Indexer.
 
         Args:
             text: Document text.
 
         Returns:
-            Dictionary mapping terms to TF weights (0.0-1.0).
+            Dictionary mapping terms to raw counts.
         """
         tokens = self._tokenize(text)
         if not tokens:
             return {}
 
-        # Count term frequencies
-        term_counts = Counter(tokens)
-        max_freq = max(term_counts.values()) if term_counts else 1
-
-        # Normalize by max frequency (TF weighting)
-        tf_weights: dict[str, float] = {
-            term: count / max_freq
-            for term, count in term_counts.items()
-        }
-
-        return tf_weights
+        # Count term frequencies (raw counts)
+        return dict(Counter(tokens))
 
     def encode(
         self,
@@ -171,6 +162,31 @@ class SparseEncoder:
             >>> records = encoder.encode(chunks)
             >>> records[0].sparse_vector
             {"hello": 1.0, "world": 1.0}
+
+
+    [
+        ChunkRecord(
+            id="1",
+            text="Hello world",
+            metadata={},  # 假设原始 metadata 为空
+            dense_vector=None,
+            sparse_vector={"hello": 1, "world": 1}
+        ),
+        ChunkRecord(
+            id="2",
+            text="Machine learning is powerful",
+            metadata={},
+            dense_vector=None,
+            sparse_vector={"machine": 1, "learning": 1, "powerful": 1}
+        ),
+        ChunkRecord(
+            id="3",
+            text="Natural language processing",
+            metadata={},
+            dense_vector=None,
+            sparse_vector={"natural": 1, "language": 1, "processing": 1}
+        )
+    ]
         """
         if not chunks:
             logger.info("No chunks to encode")
@@ -196,12 +212,12 @@ class SparseEncoder:
 
         # Compute TF vectors for each chunk
         all_tokens: set[str] = set()
-        sparse_vectors: list[dict[str, float]] = []
+        sparse_vectors: list[dict[str, int]] = []
 
         for text in texts:
-            tf_weights = self._compute_tf(text)
-            sparse_vectors.append(tf_weights)
-            all_tokens.update(tf_weights.keys())
+            term_counts = self._compute_term_counts(text)
+            sparse_vectors.append(term_counts)
+            all_tokens.update(term_counts.keys())
 
         # Build ChunkRecords with sparse vectors
         records: list[ChunkRecord] = []
@@ -265,12 +281,12 @@ class SparseEncoder:
                 sparse_vector={},
             )
 
-        # Compute TF vector
-        tf_weights = self._compute_tf(chunk.text)
+        # Compute term counts
+        term_counts = self._compute_term_counts(chunk.text)
 
-        # Sort by weight
+        # Sort by count (descending) then term (ascending)
         sorted_vector = dict(
-            sorted(tf_weights.items(), key=lambda x: (-x[1], x[0]))
+            sorted(term_counts.items(), key=lambda x: (-x[1], x[0]))
         )
 
         return ChunkRecord(

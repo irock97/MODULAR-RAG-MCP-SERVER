@@ -180,8 +180,8 @@ class TestSparseEncoderTokenization:
 class TestSparseEncoderTF:
     """Tests for TF (Term Frequency) computation."""
 
-    def test_tf_normalization(self):
-        """Test that term frequencies are normalized by max frequency."""
+    def test_term_counts(self):
+        """Test that term frequencies are raw counts."""
         encoder = SparseEncoder()
 
         chunks = [Chunk(id="test", text="apple apple banana cherry")]
@@ -189,28 +189,27 @@ class TestSparseEncoderTF:
 
         vector = records[0].sparse_vector
 
-        # "apple" appears twice (max freq = 2), so TF = 1.0
-        # "banana" and "cherry" appear once, so TF = 0.5
-        assert vector["apple"] > vector["banana"]
-        assert vector["apple"] == 1.0
-        assert vector["banana"] == vector["cherry"]
+        # Raw counts: "apple" = 2, "banana" = 1, "cherry" = 1
+        assert vector["apple"] == 2
+        assert vector["banana"] == 1
+        assert vector["cherry"] == 1
 
-    def test_vector_sorted_by_weight(self):
-        """Test that sparse vectors are sorted by weight."""
+    def test_vector_sorted_by_count(self):
+        """Test that sparse vectors are sorted by count descending."""
         encoder = SparseEncoder()
 
         chunks = [Chunk(id="test", text="apple apple banana cherry date")]
         records = encoder.encode(chunks)
 
         vector = records[0].sparse_vector
-        weights = list(vector.values())
+        counts = list(vector.values())
 
-        # Should be sorted descending by weight
-        for i in range(len(weights) - 1):
-            assert weights[i] >= weights[i + 1]
+        # Should be sorted descending by count
+        for i in range(len(counts) - 1):
+            assert counts[i] >= counts[i + 1]
 
-    def test_tf_values_are_normalized(self):
-        """Test that TF values are normalized between 0 and 1."""
+    def test_raw_counts(self):
+        """Test that TF values are raw term counts."""
         encoder = SparseEncoder()
 
         chunks = [Chunk(id="test", text="word word word other other")]
@@ -218,10 +217,9 @@ class TestSparseEncoderTF:
 
         vector = records[0].sparse_vector
 
-        # "word" appears 3 times, "other" appears 2 times
-        # Max freq = 3, so "word" = 1.0, "other" = 2/3 ≈ 0.67
-        assert vector["word"] == 1.0
-        assert 0 < vector["other"] < 1.0
+        # Raw counts: "word" = 3, "other" = 2
+        assert vector["word"] == 3
+        assert vector["other"] == 2
 
 
 class TestSparseEncoderProperties:
