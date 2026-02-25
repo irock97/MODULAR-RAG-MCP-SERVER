@@ -1735,14 +1735,14 @@ observability:
 | C11 | BM25Indexer | [x] | 2025-02-19 | ✅ IDF + 倒排索引 + 序列化 + 19 测试 |
 | C12 | VectorUpserter（幂等upsert） | [x] | 2026-02-24 | ✅ 确定性ID + 幂等upsert + 13 测试 |
 | C13 | ImageStorage | [x] | 2026-02-24 | ✅ 图片存储 + SQLite索引 + 17 测试 |
-| C14 | Pipeline 编排（MVP 串起来） | [ ] | - | |
-| C15 | 脚本入口 ingest.py | [ ] | - | |
+| C14 | Pipeline 编排（MVP 串起来） | [x] | 2026-02-24 | ✅ 串行编排 + 16 测试 |
+| C15 | 脚本入口 ingest.py | [x] | 2026-02-24 | ✅ 命令行入口 + 参数配置 |
 
 #### 阶段 D：Retrieval MVP
 
 | 任务编号 | 任务名称 | 状态 | 完成日期 | 备注 |
 |---------|---------|------|---------|------|
-| D1 | QueryProcessor（关键词提取 + filters） | [ ] | - | |
+| D1 | QueryProcessor（关键词提取 + filters） | [x] | 2026-02-24 | ✅ 关键词提取 + 规则过滤 + 18 测试 |
 | D2 | DenseRetriever | [ ] | - | |
 | D3 | SparseRetriever（BM25） | [ ] | - | |
 | D4 | RRF Fusion | [ ] | - | |
@@ -1788,12 +1788,12 @@ observability:
 |------|---------|--------|------|
 | 阶段 A | 3 | 3 | 100% |
 | 阶段 B | 16 | 16 | 100% |
-| 阶段 C | 15 | 13 | 87% |
-| 阶段 D | 7 | 0 | 0% |
+| 阶段 C | 15 | 15 | 100% |
+| 阶段 D | 7 | 1 | 14% |
 | 阶段 E | 6 | 0 | 0% |
 | 阶段 F | 5 | 0 | 0% |
 | 阶段 G | 4 | 0 | 0% |
-| **总计** | **56** | **31** | **55%** |
+| **总计** | **56** | **34** | **61%** |
 
 
 ---
@@ -2388,9 +2388,21 @@ observability:
 - **修改文件**：
   - `src/ingestion/pipeline.py`
   - `tests/integration/test_ingestion_pipeline.py`
-- **验收标准**：对 fixtures 样例文档跑完整 pipeline，输出向量与 bm25 索引文件。
-- **测试方法**：`pytest -q tests/integration/test_ingestion_pipeline.py`。
-
+- **测试数据**：
+  - **主测试文档**：`tests/fixtures/sample_documents/complex_technical_doc.pdf`
+    - 8章节技术文档（~21KB）
+    - 包含3张嵌入图片（需测试图片提取和描述）
+    - 包含5个表格（测试表格内容解析）
+    - 多页多段落（测试完整分块流程）
+  - **辅助测试**：`tests/fixtures/sample_documents/simple.pdf`（简单场景回归）
+- **验收标准**：
+  - 对 `complex_technical_doc.pdf` 跑完整 pipeline，成功输出：
+    - 向量索引文件到 ChromaDB
+    - BM25 索引文件到 `data/db/bm25/`
+    - 提取的图片到 `data/images/` (SHA256命名)
+  - Pipeline 日志清晰展示各阶段进度
+  - 失败步骤抛出明确异常信息
+- **测试方法**：`pytest -v tests/integration/test_ingestion_pipeline.py`。
 ### C15：脚本入口 ingest.py（离线可用）
 - **目标**：实现 `scripts/ingest.py`，支持 `--collection`、`--path`、`--force`，并调用 pipeline。
 - **修改文件**：

@@ -145,8 +145,8 @@ class DashScopeEmbedding(BaseEmbedding):
             "input": texts,
         }
 
-        # Add dimensions if specified and model supports it
-        if self._dimensions is not None:
+        # Add dimensions only for models that support it (v3 supports, v4 doesn't)
+        if self._dimensions is not None and "v3" in self._model:
             payload["dimensions"] = self._dimensions
 
         return payload

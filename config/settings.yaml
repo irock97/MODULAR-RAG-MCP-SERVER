@@ -26,7 +26,7 @@ embedding:
 
   # Qwen-specific (if provider is qwen):
 #  model: text-embedding-v4  # Options: text-embedding-v4, text-embedding-v3
-  api_key: sk-c692970d40764266a825fbd17945896f
+#  api_key: {}
   base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
 
 # =============================================================================
@@ -115,7 +115,7 @@ vision_llm:
   # api_version: "2024-02-15-preview"
 
   # Qwen-specific (if provider is qwen):
-  api_key: sk-c692970d40764266a825fbd17945896f
+#  api_key: {}
   base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"  # API endpoint
 
   # Ollama-specific (if provider is ollama):

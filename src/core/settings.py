@@ -51,11 +51,13 @@ class EmbeddingConfig:
         model: Model name - REQUIRED
         dimensions: Vector dimensions
         api_key: API key for remote providers
+        base_url: Base URL for API endpoints
     """
     provider: str | None = None
     model: str | None = None
     dimensions: int = 1536
     api_key: str | None = None
+    base_url: str | None = None
 
 
 @dataclass
@@ -413,6 +415,7 @@ def _yaml_to_settings(data: dict[str, Any]) -> Settings:
             model=data.get("model", "text-embedding-3-small"),
             dimensions=data.get("dimensions", 1536),
             api_key=data.get("api_key"),
+            base_url=data.get("base_url"),
         )
 
     def _build_vector_store(data: dict[str, Any]) -> VectorStoreConfig:
