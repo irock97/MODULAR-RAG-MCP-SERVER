@@ -1407,23 +1407,28 @@ smart-knowledge-hub/
 │
 ├── tests/                               # 测试目录
 │   ├── unit/                            # 单元测试
-│   │   ├── test_loader/
-│   │   ├── test_splitter/
-│   │   ├── test_transform/
-│   │   ├── test_embedding/
-│   │   ├── test_retrieval/
-│   │   └── test_reranker/
+│   │   ├── test_dense_retriever.py      # D2: 稠密检索器测试
+│   │   ├── test_sparse_retriever.py     # D3: 稀疏检索器测试
+│   │   ├── test_fusion_rrf.py           # D4: RRF 融合测试
+│   │   ├── test_reranker_fallback.py    # D6: Reranker 回退测试
+│   │   ├── test_protocol_handler.py     # E2: 协议处理器测试
+│   │   ├── test_response_builder.py     # E3: 响应构建器测试
+│   │   ├── test_list_collections.py     # E4: 集合列表工具测试
+│   │   ├── test_get_document_summary.py # E5: 文档摘要工具测试
+│   │   ├── test_trace_context.py        # F1: 追踪上下文测试
+│   │   ├── test_jsonl_logger.py         # F2: JSON Lines 日志测试
+│   │   └── ...                          # 其他已有单元测试
 │   ├── integration/                     # 集成测试
 │   │   ├── test_ingestion_pipeline.py
-│   │   ├── test_hybrid_search.py
-│   │   └── test_mcp_server.py
+│   │   ├── test_hybrid_search.py        # D5: 混合检索集成测试
+│   │   └── test_mcp_server.py           # E1-E6: MCP 服务器集成测试
 │   ├── e2e/                             # 端到端测试
 │   │   ├── test_data_ingestion.py
-│   │   ├── test_recall.py
-│   │   └── test_mcp_client.py
+│   │   ├── test_recall.py               # G2: 召回回归测试
+│   │   └── test_mcp_client.py           # G1: MCP Client 模拟测试
 │   └── fixtures/                        # 测试数据
 │       ├── sample_documents/
-│       └── golden_test_set.json
+│       └── golden_test_set.json         # F5/G2: 黄金测试集
 │
 ├── scripts/                             # 脚本目录
 │   ├── ingest.py                        # 数据摄取脚本
@@ -1451,15 +1456,18 @@ smart-knowledge-hub/
 | 模块 | 职责 | 关键技术点 |
 |-----|-----|----------|
 | `settings.py` | 配置加载与校验 | 读取 `config/settings.yaml`，解析为 `Settings`，必填字段校验（fail-fast） |
-| `types.py` | 核心数据类型/契约（全链路复用） | 定义 `Document/Chunk/ChunkRecord`；序列化稳定；作为 ingestion/retrieval/mcp 的数据契约中心 |
+| `types.py` | 核心数据类型/契约（全链路复用） | 定义 `Document/Chunk/ChunkRecord/ProcessedQuery/RetrievalResult`；序列化稳定；作为 ingestion/retrieval/mcp 的数据契约中心 |
 | `query_processor.py` | 查询预处理 | 关键词提取、同义词扩展、Metadata 解析 |
-| `hybrid_search.py` | 混合检索编排 | 并行 Dense/Sparse 召回，结果融合 |
-| `dense_retriever.py` | 语义向量检索 | Query Embedding，Cosine Similarity |
+| `hybrid_search.py` | 混合检索编排 | 并行 Dense/Sparse 召回，结果融合，Metadata 过滤 |
+| `dense_retriever.py` | 语义向量检索 | Query Embedding + VectorStore 检索，Cosine Similarity |
 | `sparse_retriever.py` | BM25 关键词检索 | 倒排索引查询，TF-IDF 打分 |
 | `fusion.py` | 结果融合 | RRF 算法，排名倒数加权 |
-| `reranker.py` | 精排重排 | CrossEncoder / LLM Rerank / Fallback |
-| `response_builder.py` | 响应构建 | Citation 生成，多模态组装 |
-| `trace_context.py` | 追踪上下文 | trace_id 生成，阶段记录 |
+| `reranker.py` | 精排重排 | CrossEncoder / LLM Rerank / Fallback 回退 |
+| `response_builder.py` | 响应构建 | MCP 响应格式化，Markdown 生成 |
+| `citation_generator.py` | 引用生成 | 从检索结果生成结构化引用列表 |
+| `multimodal_assembler.py` | 多模态组装 | Text + Image Base64 编码，MCP 多内容类型 |
+| `trace_context.py` | 追踪上下文 | trace_id 生成，阶段记录，finish 汇总 |
+| `trace_collector.py` | 追踪收集器 | 收集 trace 并触发持久化到 JSON Lines |
 
 #### 5.3.3 Ingestion Pipeline 层
 
@@ -1743,42 +1751,41 @@ observability:
 | 任务编号 | 任务名称 | 状态 | 完成日期 | 备注 |
 |---------|---------|------|---------|------|
 | D1 | QueryProcessor（关键词提取 + filters） | [x] | 2026-02-24 | ✅ 关键词提取 + 规则过滤 + 18 测试 |
-| D2 | DenseRetriever | [ ] | - | |
-| D3 | SparseRetriever（BM25） | [ ] | - | |
+| D2 | DenseRetriever（调用 VectorStore.query） | [ ] | - | |
+| D3 | SparseRetriever（BM25 查询） | [ ] | - | |
 | D4 | RRF Fusion | [ ] | - | |
-| D5 | MetadataFilter | [ ] | - | |
-| D6 | Rerank 集成与 Fallback | [ ] | - | |
-| D7 | RetrievalPipeline 编排 | [ ] | - | |
+| D5 | HybridSearch 编排 | [ ] | - | |
+| D6 | Reranker（Core 层编排 + Fallback） | [ ] | - | |
 
 #### 阶段 E：MCP Server 层与 Tools
 
 | 任务编号 | 任务名称 | 状态 | 完成日期 | 备注 |
 |---------|---------|------|---------|------|
-| E1 | MCP Server 骨架（Stdio Transport） | [ ] | - | |
-| E2 | query_knowledge_hub Tool | [ ] | - | |
-| E3 | list_collections Tool | [ ] | - | |
-| E4 | get_document_summary Tool | [ ] | - | |
-| E5 | 多模态返回（ImageContent） | [ ] | - | |
-| E6 | 错误处理与协议合规 | [ ] | - | |
+| E1 | MCP Server 入口与 Stdio 约束 | [ ] | - | |
+| E2 | Protocol Handler 协议解析与能力协商 | [ ] | - | |
+| E3 | query_knowledge_hub Tool | [ ] | - | |
+| E4 | list_collections Tool | [ ] | - | |
+| E5 | get_document_summary Tool | [ ] | - | |
+| E6 | 多模态返回组装（Text + Image） | [ ] | - | |
 
 #### 阶段 F：Observability + Evaluation
 
 | 任务编号 | 任务名称 | 状态 | 完成日期 | 备注 |
 |---------|---------|------|---------|------|
-| F1 | TraceContext 与结构化日志 | [ ] | - | |
-| F2 | 各阶段 Trace 集成 | [ ] | - | |
-| F3 | Streamlit Dashboard | [ ] | - | |
-| F4 | Golden Test Set 与回归测试 | [ ] | - | |
-| F5 | Ragas/Custom Evaluator 集成 | [ ] | - | |
+| F1 | TraceContext 增强（finish + 耗时统计） | [ ] | - | |
+| F2 | 结构化日志 logger（JSON Lines） | [ ] | - | |
+| F3 | 在关键路径打点（Query 与 Ingestion） | [ ] | - | |
+| F4 | Dashboard MVP（Streamlit） | [ ] | - | |
+| F5 | Evaluation Runner + Golden Test Set 回归 | [ ] | - | |
 
 #### 阶段 G：端到端验收与文档收口
 
 | 任务编号 | 任务名称 | 状态 | 完成日期 | 备注 |
 |---------|---------|------|---------|------|
-| G1 | E2E 测试用例补齐 | [ ] | - | |
-| G2 | 运行脚本与 README 完善 | [ ] | - | |
-| G3 | MCP 配置示例（Copilot/Claude） | [ ] | - | |
-| G4 | 最终验收与文档检查 | [ ] | - | |
+| G1 | E2E：MCP Client 侧调用模拟 | [ ] | - | |
+| G2 | E2E：Recall 回归（黄金集） | [ ] | - | |
+| G3 | 完善 README（运行说明 + MCP 配置示例） | [ ] | - | |
+| G4 | 清理接口一致性（契约测试补齐） | [ ] | - | |
 
 ---
 
@@ -1789,11 +1796,11 @@ observability:
 | 阶段 A | 3 | 3 | 100% |
 | 阶段 B | 16 | 16 | 100% |
 | 阶段 C | 15 | 15 | 100% |
-| 阶段 D | 7 | 1 | 14% |
+| 阶段 D | 6 | 1 | 17% |
 | 阶段 E | 6 | 0 | 0% |
 | 阶段 F | 5 | 0 | 0% |
 | 阶段 G | 4 | 0 | 0% |
-| **总计** | **56** | **34** | **61%** |
+| **总计** | **55** | **35** | **64%** |
 
 
 ---
@@ -2424,19 +2431,51 @@ observability:
 - **测试方法**：`pytest -q tests/unit/test_query_processor.py`。
 
 ### D2：DenseRetriever（调用 VectorStore.query）
-- **目标**：实现 `dense_retriever.py`，把 query embedding 与 filters 交给 VectorStore。
+- **目标**：实现 `dense_retriever.py`，组合 `EmbeddingClient`（query 向量化）+ `VectorStore`（向量检索），完成语义召回。
+- **前置任务**：
+  1. 需先在 `src/core/types.py` 中定义 `RetrievalResult` 类型（包含 `chunk_id`, `score`, `text`, `metadata` 字段）
+  2. 需确认 ChromaStore.query() 返回结果包含 text（当前存储在 documents 字段，需补充返回）
 - **修改文件**：
+  - `src/core/types.py`（新增 `RetrievalResult` 类型）
+  - `src/libs/vector_store/chroma_store.py`（修复：query 返回结果需包含 text 字段）
   - `src/core/query_engine/dense_retriever.py`
   - `tests/unit/test_dense_retriever.py`
-- **验收标准**：当 VectorStore 返回候选列表时，dense retriever 透传并规范化 score。
-- **测试方法**：`pytest -q tests/unit/test_dense_retriever.py`（mock vector store）。
+- **实现类/函数**：
+  - `RetrievalResult` dataclass：`chunk_id: str`, `score: float`, `text: str`, `metadata: Dict`
+  - `DenseRetriever.__init__(settings, embedding_client?, vector_store?)`：支持依赖注入用于测试
+  - `DenseRetriever.retrieve(query: str, top_k: int, filters?: dict, trace?) -> List[RetrievalResult]`
+  - 内部流程：`query → embedding_client.embed([query]) → vector_store.query(vector, top_k, filters) → 从返回结果提取 text → 规范化结果`
+- **验收标准**：
+  - `RetrievalResult` 类型已定义并可序列化
+  - ChromaStore.query() 返回结果包含 `text` 字段
+  - 对输入 query 能生成 embedding 并调用 VectorStore 检索
+  - 返回结果包含 `chunk_id`、`score`、`text`、`metadata`
+  - mock EmbeddingClient 和 VectorStore 时能正确编排调用
+- **测试方法**：`pytest -q tests/unit/test_dense_retriever.py`（mock embedding + vector store）。
+
 
 ### D3：SparseRetriever（BM25 查询）
 - **目标**：实现 `sparse_retriever.py`：从 `data/db/bm25/` 载入索引并查询。
+- **前置任务**：需在 `BaseVectorStore` 和 `ChromaStore` 中添加 `get_by_ids()` 方法，用于根据 chunk_id 批量获取 text 和 metadata
 - **修改文件**：
+  - `src/libs/vector_store/base_vector_store.py`（新增 `get_by_ids()` 抽象方法）
+  - `src/libs/vector_store/chroma_store.py`（实现 `get_by_ids()` 方法）
   - `src/core/query_engine/sparse_retriever.py`
   - `tests/unit/test_sparse_retriever.py`
-- **验收标准**：对已构建索引的 fixtures 语料，关键词检索命中预期 chunk_id。
+- **实现类/函数**：
+  - `BaseVectorStore.get_by_ids(ids: List[str]) -> List[Dict]`：根据 ID 批量获取记录
+  - `ChromaStore.get_by_ids(ids: List[str]) -> List[Dict]`：调用 ChromaDB 的 get 方法
+  - `SparseRetriever.__init__(settings, bm25_indexer?, vector_store?)`：支持依赖注入用于测试
+  - `SparseRetriever.retrieve(keywords: List[str], top_k: int, trace?) -> List[RetrievalResult]`
+  - 内部流程：
+    1. `keywords → bm25_indexer.query(keywords, top_k) → [{chunk_id, score}]`
+    2. `chunk_ids → vector_store.get_by_ids(chunk_ids) → [{id, text, metadata}]`
+    3. 合并 score 与 text/metadata，组装为 `RetrievalResult` 列表
+  - 注意：keywords 来自 `QueryProcessor.process()` 的 `ProcessedQuery.keywords`
+- **验收标准**：
+  - `BaseVectorStore.get_by_ids()` 和 `ChromaStore.get_by_ids()` 已实现
+  - 对已构建索引的 fixtures 语料，关键词检索命中预期 chunk_id
+  - 返回结果包含完整的 text 和 metadata
 - **测试方法**：`pytest -q tests/unit/test_sparse_retriever.py`。
 
 ### D4：Fusion（RRF 实现）
@@ -2448,11 +2487,20 @@ observability:
 - **测试方法**：`pytest -q tests/unit/test_fusion_rrf.py`。
 
 ### D5：HybridSearch 编排
-- **目标**：实现 `hybrid_search.py`：并行/串行均可（先串行），调用 dense+sparse+fusion。
+- **目标**：实现 `hybrid_search.py`：编排 Dense + Sparse + Fusion 的完整混合检索流程，并集成 Metadata 过滤逻辑。
+- **前置依赖**：D1（QueryProcessor）、D2（DenseRetriever）、D3（SparseRetriever）、D4（Fusion）
 - **修改文件**：
   - `src/core/query_engine/hybrid_search.py`
   - `tests/integration/test_hybrid_search.py`
-- **验收标准**：对 fixtures 数据，能返回 Top-K（包含 chunk 文本与 metadata）。
+- **实现类/函数**：
+  - `HybridSearch.__init__(settings, query_processor, dense_retriever, sparse_retriever, fusion)`
+  - `HybridSearch.search(query: str, top_k: int, filters?: dict, trace?) -> List[RetrievalResult]`
+  - `HybridSearch._apply_metadata_filters(candidates, filters) -> List[RetrievalResult]`：后置过滤兜底
+  - 内部流程：`query_processor.process() → 并行(dense.retrieve + sparse.retrieve) → fusion.fuse() → metadata_filter → Top-K`
+- **验收标准**：
+  - 对 fixtures 数据，能返回 Top-K（包含 chunk 文本与 metadata）
+  - 支持 filters 参数（如 `collection`、`doc_type`）进行过滤
+  - Dense/Sparse 任一路径失败时能降级到单路结果
 - **测试方法**：`pytest -q tests/integration/test_hybrid_search.py`。
 
 ### D6：Reranker（Core 层编排 + fallback）
@@ -2476,8 +2524,8 @@ observability:
 - **验收标准**：启动 server 能完成 initialize；stderr 有日志但 stdout 不污染。
 - **测试方法**：`pytest -q tests/integration/test_mcp_server.py`（子进程方式）。
 
-### E1.5：Protocol Handler 协议解析与能力协商
-- **目标**：实现 `mcp_server/protocol_handler.py`：封装 JSON-RPC 2.0 协议解析，处理 `initialize`、`tools/list`、`tools/call` 三类核心方法。
+### E2：Protocol Handler 协议解析与能力协商
+- **目标**：实现 `mcp_server/protocol_handler.py`：封装 JSON-RPC 2.0 协议解析，处理 `initialize`、`tools/list`、`tools/call` 三类核心方法，并实现规范的错误处理。
 - **修改文件**：
   - `src/mcp_server/protocol_handler.py`
   - `tests/unit/test_protocol_handler.py`
@@ -2486,26 +2534,35 @@ observability:
     - `handle_initialize(params)` → 返回 server capabilities（支持的 tools 列表、版本信息）
     - `handle_tools_list()` → 返回已注册的 tool schema（name, description, inputSchema）
     - `handle_tools_call(name, arguments)` → 路由到具体 tool 执行，捕获异常并转换为 JSON-RPC error
-  - **错误码规范**：遵循 JSON-RPC 2.0（-32600 Invalid Request, -32601 Method not found, -32602 Invalid params）
+  - **错误码规范**：遵循 JSON-RPC 2.0（-32600 Invalid Request, -32601 Method not found, -32602 Invalid params, -32603 Internal error）
   - **能力协商**：在 `initialize` 响应中声明 `capabilities.tools`
 - **验收标准**：
   - 发送 `initialize` 请求能返回正确的 `serverInfo` 和 `capabilities`
   - 发送 `tools/list` 能返回已注册 tools 的 schema
   - 发送 `tools/call` 能正确路由并返回结果或规范错误
+  - **错误处理**：无效方法返回 -32601，参数错误返回 -32602，内部异常返回 -32603 且不泄露堆栈
 - **测试方法**：`pytest -q tests/unit/test_protocol_handler.py`。
 
-### E2：实现 tool：query_knowledge_hub
-### E2：实现 tool：query_knowledge_hub### E2：实现 tool：query_knowledge_hub
-- **目标**：实现 `tools/query_knowledge_hub.py`：调用 query engine，返回 Markdown + structured citations。
+### E3：实现 tool：query_knowledge_hub
+- **目标**：实现 `tools/query_knowledge_hub.py`：调用 HybridSearch + Reranker，构建带引用的响应，返回 Markdown + structured citations。
+- **前置依赖**：D5（HybridSearch）、D6（Reranker）、E1（Server）、E2（Protocol Handler）
 - **修改文件**：
   - `src/mcp_server/tools/query_knowledge_hub.py`
-  - `src/core/response/response_builder.py`
-  - `src/core/response/citation_generator.py`
+  - `src/core/response/response_builder.py`（新增：构建 MCP 响应格式）
+  - `src/core/response/citation_generator.py`（新增：生成引用信息）
+  - `tests/unit/test_response_builder.py`（新增）
   - `tests/integration/test_mcp_server.py`（补用例）
-- **验收标准**：tool 返回 content[0] 为可读 Markdown；structuredContent.citations 含 source/page/chunk_id/score。
+- **实现类/函数**：
+  - `ResponseBuilder.build(retrieval_results, query) -> MCPResponse`：构建 MCP 格式响应
+  - `CitationGenerator.generate(retrieval_results) -> List[Citation]`：生成引用列表
+  - `query_knowledge_hub(query, top_k?, collection?) -> MCPToolResult`：Tool 入口函数
+- **验收标准**：
+  - tool 返回 `content[0]` 为可读 Markdown（含 `[1]`、`[2]` 等引用标注）
+  - `structuredContent.citations` 包含 `source`/`page`/`chunk_id`/`score` 字段
+  - 无结果时返回友好提示而非空数组
 - **测试方法**：`pytest -q tests/integration/test_mcp_server.py -k query_knowledge_hub`。
 
-### E3：实现 tool：list_collections
+### E4：实现 tool：list_collections
 - **目标**：实现 `tools/list_collections.py`：列出 `data/documents/` 下集合并附带统计（可延后到下一步）。
 - **修改文件**：
   - `src/mcp_server/tools/list_collections.py`
@@ -2513,7 +2570,7 @@ observability:
 - **验收标准**：对 fixtures 中的目录结构能返回集合名列表。
 - **测试方法**：`pytest -q tests/unit/test_list_collections.py`。
 
-### E4：实现 tool：get_document_summary
+### E5：实现 tool：get_document_summary
 - **目标**：实现 `tools/get_document_summary.py`：按 doc_id 返回 title/summary/tags（可先从 metadata/缓存取）。
 - **修改文件**：
   - `src/mcp_server/tools/get_document_summary.py`
@@ -2521,44 +2578,60 @@ observability:
 - **验收标准**：对不存在 doc_id 返回规范错误；存在时返回结构化信息。
 - **测试方法**：`pytest -q tests/unit/test_get_document_summary.py`。
 
-### E5：多模态返回组装（Text + Image）
+### E6：多模态返回组装（Text + Image）
 - **目标**：实现 `multimodal_assembler.py`：命中 chunk 含 image_refs 时读取图片并 base64 返回 ImageContent。
 - **修改文件**：
   - `src/core/response/multimodal_assembler.py`
-  - `tests/integration/test_mcp_server.py`（补图像返回用例）
-- **验收标准**：返回 content 中包含 image type，mimeType 正确，data 为 base64 字符串。
-- **测试方法**：`pytest -q tests/integration/test_mcp_server.py -k image`。
 
 ---
 
 ## 阶段 F：Observability + Evaluation（目标：可追踪 + 可回归）
 
-### F1：TraceContext 数据结构与 record_stage/finish
-- **目标**：实现请求级 trace：trace_id、stages、metrics，并能写入 jsonl。
+### F1：TraceContext 增强（finish + 耗时统计）
+- **目标**：增强已有的 `TraceContext`（C5 已实现基础版），添加 `finish()` 方法、耗时统计、metrics 汇总功能。
 - **修改文件**：
-  - `src/core/trace/trace_context.py`
-  - `src/core/trace/trace_collector.py`
-  - `tests/unit/test_trace_context.py`
-- **验收标准**：record_stage 追加阶段；finish 输出 dict 可 JSON 序列化。
+  - `src/core/trace/trace_context.py`（增强：添加 finish/elapsed_ms/to_dict）
+  - `src/core/trace/trace_collector.py`（新增：收集并持久化 trace）
+  - `tests/unit/test_trace_context.py`（补充 finish 相关测试）
+- **实现类/函数**：
+  - `TraceContext.finish() -> None`：标记 trace 结束，计算总耗时
+  - `TraceContext.elapsed_ms(stage_name?) -> float`：获取指定阶段或总耗时
+  - `TraceContext.to_dict() -> dict`：序列化为可 JSON 输出的字典
+  - `TraceCollector.collect(trace: TraceContext) -> None`：收集 trace 并触发持久化
+- **验收标准**：
+  - `record_stage` 追加阶段数据（已有）
+  - `finish()` 后 `to_dict()` 输出包含 `trace_id`、`started_at`、`finished_at`、`total_elapsed_ms`、`stages`
+  - 输出 dict 可直接 `json.dumps()` 序列化
 - **测试方法**：`pytest -q tests/unit/test_trace_context.py`。
 
 ### F2：结构化日志 logger（JSON Lines）
-- **目标**：实现 `observability/logger.py`：把 trace 写入 `logs/traces.jsonl`。
+- **目标**：增强 `observability/logger.py`，支持 JSON Lines 格式输出，并实现 trace 持久化到 `logs/traces.jsonl`。
 - **修改文件**：
-  - `src/observability/logger.py`
+  - `src/observability/logger.py`（增强：添加 JSONFormatter + FileHandler）
   - `tests/unit/test_jsonl_logger.py`
+- **实现类/函数**：
+  - `JSONFormatter`：自定义 logging Formatter，输出 JSON 格式
+  - `get_trace_logger() -> logging.Logger`：获取配置了 JSON Lines 输出的 logger
+  - `write_trace(trace_dict: dict) -> None`：将 trace 字典写入 `logs/traces.jsonl`
+- **与 F1 的分工**：
+  - F1 负责 TraceContext 的数据结构和 `finish()` 方法
+  - F2 负责将 `trace.to_dict()` 的结果持久化到文件
 - **验收标准**：写入一条 trace 后文件新增一行合法 JSON。
 - **测试方法**：`pytest -q tests/unit/test_jsonl_logger.py`。
 
 ### F3：在关键路径打点（Query 与 Ingestion）
 - **目标**：在 Pipeline 与 HybridSearch/Rerank 中注入 TraceContext，利用 B 阶段抽象接口中预留的 `trace` 参数，显式调用 `trace.record_stage()` 记录各阶段数据。
+- **前置依赖**：D5（HybridSearch）、D6（Reranker）、F1（TraceContext 增强）、F2（结构化日志）
 - **修改文件**：
-  - `src/ingestion/pipeline.py`
-  - `src/core/query_engine/hybrid_search.py`
-  - `src/core/query_engine/reranker.py`
+  - `src/ingestion/pipeline.py`（增加 trace 传递）
+  - `src/core/query_engine/hybrid_search.py`（增加 trace 记录）
+  - `src/core/query_engine/reranker.py`（增加 trace 记录）
   - `tests/integration/test_hybrid_search.py`（断言 trace 中存在阶段）
 - **说明**：B 阶段的 `BaseEmbedding`、`BaseSplitter`、`BaseVectorStore`、`BaseReranker` 接口已预留 `trace: TraceContext | None = None` 参数，本任务负责在调用这些组件时传入实际的 TraceContext 实例。
-- **验收标准**：一次查询/一次摄取都会生成 trace，包含 dense/sparse/fusion/rerank 阶段耗时字段。
+- **验收标准**：
+  - 一次查询生成 trace，包含 `query_processing`/`dense_retrieval`/`sparse_retrieval`/`fusion`/`rerank` 阶段
+  - 一次摄取生成 trace，包含 `load`/`split`/`transform`/`embed`/`upsert` 阶段
+  - 每个阶段记录 `elapsed_ms` 耗时字段
 - **测试方法**：`pytest -q tests/integration/test_hybrid_search.py`。
 
 ### F4：Dashboard MVP（Streamlit）
@@ -2571,13 +2644,30 @@ observability:
 
 ### F5：Evaluation Runner + Golden Test Set 回归
 - **目标**：实现 `eval_runner.py`：读取 `tests/fixtures/golden_test_set.json`，跑 retrieval 并产出 metrics。
+- **前置依赖**：D5（HybridSearch）、F1-F3（Trace 体系）
 - **修改文件**：
+  - `tests/fixtures/golden_test_set.json`（新增：黄金测试集，至少包含 10 条 query-answer-source 三元组）
   - `src/observability/evaluation/eval_runner.py`
   - `scripts/evaluate.py`
   - `tests/integration/test_hybrid_search.py`（可增加黄金集 smoke）
+- **实现类/函数**：
+  - `EvalRunner.__init__(settings, hybrid_search, evaluator)`
+  - `EvalRunner.run(test_set_path) -> EvalReport`：运行评估并返回报告
+  - `EvalReport`：包含 hit_rate, mrr, 各 query 结果详情
+- **golden_test_set.json 格式**：
+  ```json
+  {
+    "test_cases": [
+      {
+        "query": "如何配置 Azure OpenAI？",
+        "expected_chunk_ids": ["chunk_abc_001", "chunk_abc_002"],
+        "expected_sources": ["config_guide.pdf"]
+      }
+    ]
+  }
+  ```
 - **验收标准**：evaluate 脚本可运行，输出 metrics（至少 custom 指标）。
 - **测试方法**：`pytest -q tests/integration/test_hybrid_search.py` 或运行 `python scripts/evaluate.py`。
-
 ---
 
 ## 阶段 G：端到端验收与文档收口（目标：开箱即用的“可复现”工程）
@@ -2597,11 +2687,19 @@ observability:
 - **验收标准**：hit@k 达到阈值（阈值写死在测试里，便于回归）。
 - **测试方法**：`pytest -q tests/e2e/test_recall.py`。
 
-### G3：完善 README（运行说明 + 测试说明 + 常见问题）
-- **目标**：让新用户能在 10 分钟内跑通 ingest + query + dashboard + tests。
+### G3：完善 README（运行说明 + 测试说明 + MCP 配置示例）
+- **目标**：让新用户能在 10 分钟内跑通 ingest + query + dashboard + tests，并能在 Copilot/Claude 中使用。
 - **修改文件**：
   - `README.md`
-- **验收标准**：README 包含：安装、配置、摄取、查询、运行测试、启动 dashboard。
+- **验收标准**：README 包含以下章节：
+  - **快速开始**：安装依赖、配置 API Key、运行首次摄取
+  - **配置说明**：`settings.yaml` 各字段含义
+  - **MCP 配置示例**：
+    - GitHub Copilot（VS Code）：`mcp.json` 配置示例
+    - Claude Desktop：`claude_desktop_config.json` 配置示例
+  - **运行测试**：单元测试、集成测试、E2E 测试命令
+  - **启动 Dashboard**：Streamlit 启动命令与访问地址
+  - **常见问题**：API Key 配置、依赖安装、连接问题排查
 - **测试方法**：按 README 手动走一遍（并在 PR/自测中记录）。
 
 ### G4：清理接口一致性（契约测试补齐）
