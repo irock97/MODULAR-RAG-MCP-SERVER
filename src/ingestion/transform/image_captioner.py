@@ -72,7 +72,7 @@ class ImageCaptioner(BaseTransform):
     descriptive captions using a Vision LLM. The captions are stored in
     chunk.metadata for retrieval purposes.
 
-    Configuration is controlled by `settings.ingestion.image_captioner.enabled`.
+    Configuration is controlled by `settings.vision_llm.enabled`.
     If enabled but Vision LLM fails, the captioner gracefully falls back
     and marks the chunk with `has_unprocessed_images`.
 
@@ -99,9 +99,8 @@ class ImageCaptioner(BaseTransform):
         self._vision_llm = vision_llm
         self._prompt_path = Path(prompt_path) if prompt_path else None
 
-        # Check if captioning is enabled via config
-        captioner_config = settings.ingestion.image_captioner
-        self._enabled = captioner_config.enabled
+        # Check if vision capabilities are enabled via vision_llm config
+        self._enabled = settings.vision_llm.enabled
 
         self._prompt_template: str | None = None
 

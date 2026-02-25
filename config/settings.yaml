@@ -21,13 +21,13 @@ llm:
 embedding:
   provider: "qwen"  # Options: openai, qwen, local
   model: "text-embedding-v4"
-  dimensions: 1536
+#  dimensions: 1536
   # api_key: ${OPENAI_API_KEY}
 
   # Qwen-specific (if provider is qwen):
-  # model: text-embedding-v4  # Options: text-embedding-v4, text-embedding-v3
-#  api_key: {}
-#  base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+#  model: text-embedding-v4  # Options: text-embedding-v4, text-embedding-v3
+  api_key: sk-c692970d40764266a825fbd17945896f
+  base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
 
 # =============================================================================
 # Vector Store Configuration
@@ -115,8 +115,8 @@ vision_llm:
   # api_version: "2024-02-15-preview"
 
   # Qwen-specific (if provider is qwen):
-#  api_key: {}
-#  base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"  # API endpoint
+  api_key: sk-c692970d40764266a825fbd17945896f
+  base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"  # API endpoint
 
   # Ollama-specific (if provider is ollama):
   # base_url: "http://localhost:11434"

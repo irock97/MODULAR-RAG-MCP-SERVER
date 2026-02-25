@@ -25,13 +25,21 @@ class TraceContext:
         """Get the unique trace ID for this pipeline run."""
         return self._trace_id
 
-    def record_stage(self, stage_name: str, data: dict[str, Any]) -> None:
+    def record_stage(
+        self,
+        stage_name: str,
+        data: dict[str, Any],
+        elapsed_ms: float | None = None
+    ) -> None:
         """Record data for a pipeline stage.
 
         Args:
             stage_name: Name of the pipeline stage (e.g., "chunking", "refining").
             data: Dictionary of stage data to record.
+            elapsed_ms: Optional elapsed time in milliseconds for this stage.
         """
+        if elapsed_ms is not None:
+            data["elapsed_ms"] = elapsed_ms
         self._stages[stage_name] = data
 
     def get_stage(self, stage_name: str) -> dict[str, Any] | None:

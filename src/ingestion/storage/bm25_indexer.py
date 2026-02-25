@@ -296,6 +296,9 @@ class BM25Indexer:
                 },
             )
 
+        # Persist index to disk
+        self.save()
+
     def search(
         self,
         query: str,

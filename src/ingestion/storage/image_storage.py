@@ -11,7 +11,7 @@ Design Principles:
 Example:
     >>> from ingestion.storage import ImageStorage
     >>> storage = ImageStorage()
-    >>> image_id = storage.save_image("/path/to/image.png", "my_collection")
+    >>> image_id = storage.register_image("/path/to/image.png", "my_collection")
     >>> path = storage.get_image_path(image_id)
 """
 
@@ -70,7 +70,7 @@ class ImageStorage:
     Example:
         >>> from ingestion.storage import ImageStorage
         >>> storage = ImageStorage()
-        >>> image_id = storage.save_image("/path/to/image.png", "docs")
+        >>> image_id = storage.register_image("/path/to/image.png", "docs")
         >>> path = storage.get_image_path(image_id)
     """
 
@@ -164,20 +164,20 @@ class ImageStorage:
         """Get the directory for a collection."""
         return self._image_dir / collection
 
-    def save_image(
+    def register_image(
         self,
         source_path: str | Path,
         collection: str = "default",
         doc_hash: str | None = None,
         page_num: int | None = None,
     ) -> str:
-        """Save an image to storage.
+        """Index an image in the database.
 
-        This method copies the image to the collection directory and
-        records the mapping in the database.
+        This method records the image mapping in the database without copying the file.
+        The image file is assumed to already exist at source_path (saved by PdfLoader).
 
         Args:
-            source_path: Path to the source image file.
+            source_path: Path to the source image file (already saved by PdfLoader).
             collection: Collection name for organizing images.
             doc_hash: Optional hash of the source document.
             page_num: Optional page number for multi-page documents.
@@ -186,35 +186,16 @@ class ImageStorage:
             The generated image_id.
 
         Raises:
-            ImageStorageError: If the source file doesn't exist or can't be copied.
+            ImageStorageError: If the source file doesn't exist.
         """
         source_path = Path(source_path)
         if not source_path.exists():
             raise ImageStorageError(f"Source image not found: {source_path}")
 
-        # Generate image_id
+        # Generate image_id based on source path and page
         image_id = self._generate_image_id(str(source_path), page_num)
 
-        # Get collection directory
-        collection_dir = self._get_collection_dir(collection)
-        collection_dir.mkdir(parents=True, exist_ok=True)
-
-        # Determine file extension
-        extension = source_path.suffix.lower()
-        if not extension:
-            extension = ".png"  # Default extension
-
-        # Destination path
-        dest_filename = f"{image_id}{extension}"
-        dest_path = collection_dir / dest_filename
-
-        # Copy file if it doesn't exist
-        if not dest_path.exists():
-            shutil.copy2(source_path, dest_path)
-            logger.debug(f"Copied image to {dest_path}")
-        else:
-            logger.debug(f"Image already exists at {dest_path}")
-
+        # Use the existing source_path directly (no file copy)
         # Record in database
         conn = self._get_connection()
         try:
@@ -226,14 +207,14 @@ class ImageStorage:
                     collection = EXCLUDED.collection,
                     doc_hash = EXCLUDED.doc_hash,
                     page_num = EXCLUDED.page_num
-            """, (image_id, str(dest_path), collection, doc_hash, page_num))
+            """, (image_id, str(source_path.resolve()), collection, doc_hash, page_num))
             conn.commit()
         except Exception:
             conn.close()
             self._conn = None
             raise
 
-        logger.info(f"Saved image {image_id} to {dest_path}")
+        logger.info(f"Indexed image {image_id} at {source_path}")
 
         return image_id
 

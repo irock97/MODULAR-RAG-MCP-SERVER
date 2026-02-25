@@ -53,6 +53,9 @@ class DenseEncoder:
         >>> records = encoder.encode(chunks)
     """
 
+    # DashScope API limit
+    MAX_BATCH_SIZE = 10
+
     def __init__(
         self,
         embedding: BaseEmbedding,
@@ -67,12 +70,24 @@ class DenseEncoder:
             settings: Optional settings for configuration.
         """
         self._embedding = embedding
-        self._batch_size = batch_size
         self._settings = settings
+
+        # Only cap batch_size for text-embedding models (DashScope/Qwen has limit of 10)
+        model_name = getattr(embedding, '_model', '') or ''
+        if 'text-embedding' in model_name.lower():
+            effective_batch_size = min(batch_size, self.MAX_BATCH_SIZE)
+            logger.info(
+                f"Capping batch_size from {batch_size} to {effective_batch_size} "
+                f"for text-embedding model"
+            )
+        else:
+            effective_batch_size = batch_size
+
+        self._batch_size = effective_batch_size
 
         logger.info(
             f"DenseEncoder initialized: provider={embedding.provider_name}, "
-            f"batch_size={batch_size}, dimensions={embedding.dimensions}"
+            f"batch_size={effective_batch_size}, dimensions={embedding.dimensions}"
         )
 
     @property

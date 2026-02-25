@@ -22,6 +22,7 @@ Example:
 """
 
 import hashlib
+import json
 from typing import Any
 
 from core.trace.trace_context import TraceContext
@@ -137,11 +138,49 @@ class VectorUpserter:
                 text=record.text,
             )
 
+        # Convert metadata for ChromaDB compatibility
+        # ChromaDB only supports str, int, float, bool in metadata
+        # Convert complex types (dicts, lists, etc.) to JSON strings
+        metadata = self._convert_metadata_for_chroma(record.metadata)
+
         return VectorRecord(
             id=chunk_id,
             vector=record.dense_vector,
-            metadata=record.metadata,
+            metadata=metadata,
         )
+
+    def _convert_metadata_for_chroma(
+        self,
+        metadata: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Convert metadata to be ChromaDB compatible.
+
+        ChromaDB only supports str, int, float, bool values in metadata.
+        This method converts complex types to JSON strings.
+
+        Args:
+            metadata: Original metadata dict
+
+        Returns:
+            ChromaDB-compatible metadata dict
+        """
+        converted: dict[str, Any] = {}
+
+        for key, value in metadata.items():
+            if value is None:
+                # Skip None values
+                continue
+            elif isinstance(value, (str, int, float, bool)):
+                # Keep simple types as-is
+                converted[key] = value
+            elif isinstance(value, (list, dict)):
+                # Convert complex types to JSON string
+                converted[key] = json.dumps(value, ensure_ascii=False)
+            else:
+                # For any other type, convert to string
+                converted[key] = str(value)
+
+        return converted
 
     def upsert(
         self,

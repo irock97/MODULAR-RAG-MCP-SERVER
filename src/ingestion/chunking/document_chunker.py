@@ -8,16 +8,19 @@ Design Principles:
     - Deterministic: Chunk IDs are stable across runs
     - Metadata Inheritance: Chunks inherit document metadata
     - Traceable: Chunks reference their parent document
+    - Image Extraction: Uses regex to extract [IMAGE: xxx] placeholders from chunk text
 
 Core Responsibilities:
     1. Generate stable Chunk IDs: `{doc_id}_{index:04d}_{hash_8chars}`
     2. Inherit Document.metadata to each Chunk
     3. Add chunk_index for ordering
     4. Set source_ref to parent Document.id
-    5. Convert List[str] from splitter to List[Chunk]
+    5. Extract image_refs from chunk text using regex
+    6. Convert List[str] from splitter to List[Chunk]
 """
 
 import hashlib
+import re
 from typing import Any
 
 from core.settings import Settings
@@ -42,7 +45,7 @@ class DocumentChunker:
     - Generates deterministic chunk IDs
     - Inherits document metadata
     - Tracks chunk positions
-    - Enables source tracing
+    - Extracts image references from chunk text
 
     Example:
         >>> from core.settings import load_settings
@@ -56,6 +59,9 @@ class DocumentChunker:
         >>> doc = Document(id="doc1", text="Long text...", metadata={})
         >>> chunks = chunker.split_document(doc)
     """
+
+    # Regex pattern to match [IMAGE: xxx] placeholders
+    IMAGE_PLACEHOLDER_PATTERN = re.compile(r'\[IMAGE:\s*([^\]]+)\]')
 
     def __init__(
         self,
@@ -90,7 +96,7 @@ class DocumentChunker:
         This is the main entry point for document chunking. It:
         1. Calls libs.splitter to get text chunks
         2. Generates stable chunk IDs
-        3. Inherits document metadata
+        3. Inherits document metadata and extracts image refs from text
         4. Adds chunk_index for ordering
         5. Sets source_ref for tracing
 
@@ -121,10 +127,10 @@ class DocumentChunker:
             # Generate stable chunk ID
             chunk_id = self._generate_chunk_id(document.id, index, text_chunk)
 
-            # Inherit and extend metadata
-            chunk_metadata = self._inherit_metadata(document, index)
+            # Inherit and extend metadata, extracting images from text
+            chunk_metadata = self._inherit_metadata(document, index, text_chunk)
 
-            # Create the Chunk object
+            # Create the Chunk object (no start_offset/end_offset needed)
             chunk = Chunk(
                 id=chunk_id,
                 text=text_chunk,
@@ -171,18 +177,20 @@ class DocumentChunker:
         self,
         document: Document,
         chunk_index: int,
+        chunk_text: str,
     ) -> dict[str, Any]:
         """Inherit document metadata and add chunk-specific fields.
 
-        All fields from document.metadata are copied to chunk.metadata,
-        plus additional fields for chunking context.
+        Extracts image references from chunk text using regex, then looks up
+        full image metadata from document.metadata["images"].
 
         Args:
             document: The source Document.
             chunk_index: The chunk's position in the document.
+            chunk_text: The text content of the chunk (used to extract image refs).
 
         Returns:
-            A metadata dictionary with inherited and added fields.
+            A metadata dictionary with inherited and enriched fields.
         """
         # Copy existing metadata
         inherited: dict[str, Any] = dict(document.metadata)
@@ -190,6 +198,31 @@ class DocumentChunker:
         # Add chunking-specific fields
         inherited["chunk_index"] = chunk_index
 
+        # Remove document-level images - we'll add chunk-specific images below
+        inherited.pop("images", None)
+
+        # Extract image_refs from chunk text using regex
+        # This automatically handles overlap - if text contains [IMAGE: xxx], it's captured
+        image_refs = []
+        if chunk_text:
+            matches = self.IMAGE_PLACEHOLDER_PATTERN.findall(chunk_text)
+            image_refs = [m.strip() for m in matches]
+
+        inherited["image_refs"] = image_refs
+
+        # Build chunk-specific images list with full metadata
+        # This is needed by ImageCaptioner to access image paths
+        chunk_images = []
+        if image_refs:
+            doc_images = document.metadata.get("images", [])
+            if doc_images:
+                # Create lookup by image id
+                image_lookup = {img.get("id"): img for img in doc_images}
+                for img_id in image_refs:
+                    if img_id in image_lookup:
+                        chunk_images.append(image_lookup[img_id])
+
+        if chunk_images:
+            inherited["images"] = chunk_images
+
         return inherited
-
-

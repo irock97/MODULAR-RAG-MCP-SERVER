@@ -20,7 +20,7 @@ from typing import Any
 
 
 # Default cache directory and database
-DEFAULT_CACHE_DIR = "data/cache"
+DEFAULT_CACHE_DIR = "data/db"
 DEFAULT_DB_FILE = "ingestion_history.db"
 
 

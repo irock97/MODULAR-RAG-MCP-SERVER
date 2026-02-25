@@ -194,6 +194,8 @@ class ChunkRefiner(BaseTransform):
                     text=chunk.text,
                     metadata=dict(chunk.metadata),
                     source_ref=chunk.source_ref,
+                    start_offset=chunk.start_offset,
+                    end_offset=chunk.end_offset,
                 )
                 error_chunk.metadata["refinement"] = {
                     "refined_by": "rule",

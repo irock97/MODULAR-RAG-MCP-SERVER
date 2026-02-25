@@ -135,9 +135,9 @@ class ChromaStore(BaseVectorStore):
                 ids.append(record_id)
                 embeddings.append(record.vector)
                 # ChromaDB requires non-empty metadata, use placeholder if empty
-                metadatas.append(record.metadata or {"source": ""})
-                # Use metadata source or empty document placeholder
-                documents.append(record.metadata.get("source", "") if record.metadata else "")
+                metadatas.append(record.metadata or {"source_path": ""})
+                # Use metadata source_path or empty document placeholder
+                documents.append(record.metadata.get("source_path", "") if record.metadata else "")
 
             # Upsert to ChromaDB
             self._collection.upsert(

@@ -167,7 +167,7 @@ class PdfLoader(BaseLoader):
         """Extract images from PDF and insert placeholders.
 
         Uses PyMuPDF (fitz) to extract images, save them to disk, and insert
-        placeholders in the text content.
+        placeholders at the correct position in the text content (where the image appears).
 
         Args:
             pdf_path: Path to PDF file.
@@ -184,7 +184,6 @@ class PdfLoader(BaseLoader):
             return text_content, []
 
         images_metadata: list[dict[str, Any]] = []
-        modified_text = text_content
 
         # Create image directory
         image_dir = self._image_storage_dir / doc_hash
@@ -193,9 +192,33 @@ class PdfLoader(BaseLoader):
         # Open PDF with PyMuPDF
         doc = fitz.open(str(pdf_path))
 
+        # Build page text offsets for accurate placeholder insertion
+        # text_content from MarkItDown - we need to track where each page starts
+        page_texts: list[str] = []
+        cumulative_offset = 0
+
+        for page_num in range(len(doc)):
+            page = doc[page_num]
+            # Extract text for this specific page using PyMuPDF
+            page_text = page.get_text("text") or ""
+            # Normalize whitespace
+            page_text = "\n".join(line.strip() for line in page_text.split("\n") if line.strip())
+            page_texts.append(page_text)
+            cumulative_offset += len(page_text) + 1  # +1 for page separator
+
+        # Now rebuild the text with placeholders inserted at correct positions
+        # Strategy: Insert placeholders after each page's content where images belong
+        result_parts: list[str] = []
         image_count = 0
+        global_offset = 0
+
         for page_num, page in enumerate(doc):
-            # Get image list from page
+            # Add this page's text
+            page_text = page_texts[page_num]
+            result_parts.append(page_text)
+            current_page_end = len("".join(result_parts))
+
+            # Get image list from this page
             image_list = page.get_images(full=True)
 
             for img_index, img in enumerate(image_list):
@@ -212,9 +235,9 @@ class PdfLoader(BaseLoader):
                 with open(image_path, "wb") as f:
                     f.write(base_image["image"])
 
-                # Create placeholder and calculate text_offset
+                # Create placeholder
                 placeholder = f"\n[IMAGE: image_{image_count}]\n"
-                text_offset = len(modified_text)
+                text_offset = current_page_end
                 text_length = len(placeholder)
 
                 # Create image metadata following C1 spec
@@ -231,12 +254,15 @@ class PdfLoader(BaseLoader):
                 }
                 images_metadata.append(img_metadata)
 
-                # Insert placeholder in text
-                modified_text += placeholder
+                # Insert placeholder after current page text
+                result_parts.append(placeholder)
+                current_page_end += len(placeholder)
 
                 image_count += 1
 
         doc.close()
+
+        modified_text = "\n".join(result_parts)
 
         if images_metadata:
             logger.info(
