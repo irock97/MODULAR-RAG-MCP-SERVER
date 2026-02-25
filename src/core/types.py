@@ -138,3 +138,42 @@ class ChunkRecord:
 # Type aliases for convenience
 IngestionEntity = Document | Chunk | ChunkRecord
 """Union type for any entity in the ingestion pipeline."""
+
+
+@dataclass(frozen=True)
+class ProcessedQuery:
+    """Processed query result for retrieval.
+
+    Represents a parsed query with extracted keywords, filters,
+    and normalized text ready for retrieval.
+
+    Attributes:
+        keywords: List of extracted keywords
+        filters: Parsed filter dictionary
+        raw_query: Original raw query string
+        normalized_query: Normalized query string
+    """
+
+    keywords: list[str]
+    filters: dict[str, Any]
+    raw_query: str
+    normalized_query: str
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "keywords": self.keywords,
+            "filters": self.filters,
+            "raw_query": self.raw_query,
+            "normalized_query": self.normalized_query,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "ProcessedQuery":
+        """Create from dictionary."""
+        return cls(
+            keywords=data["keywords"],
+            filters=data["filters"],
+            raw_query=data["raw_query"],
+            normalized_query=data["normalized_query"],
+        )
