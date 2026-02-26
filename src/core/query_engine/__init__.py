@@ -1,5 +1,6 @@
 # Query Engine - Hybrid search and retrieval
 from core.query_engine.dense_retriever import DenseRetriever
+from core.query_engine.fusion import RRFFusion
 from core.query_engine.query_processor import (
     QueryProcessor,
     QueryProcessorConfig,
@@ -13,6 +14,7 @@ __all__ = [
     "QueryProcessor",
     "QueryProcessorConfig",
     "QueryResult",
+    "RRFFusion",
     "SparseRetriever",
     "create_query_processor",
 ]

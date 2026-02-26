@@ -1432,6 +1432,7 @@ smart-knowledge-hub/
 │
 ├── scripts/                             # 脚本目录
 │   ├── ingest.py                        # 数据摄取脚本
+│   ├── query.py                         # 查询测试脚本（在线查询入口）
 │   ├── evaluate.py                      # 评估运行脚本
 │   └── start_dashboard.py               # Dashboard 启动脚本
 │
@@ -1469,7 +1470,16 @@ smart-knowledge-hub/
 | `trace_context.py` | 追踪上下文 | trace_id 生成，阶段记录，finish 汇总 |
 | `trace_collector.py` | 追踪收集器 | 收集 trace 并触发持久化到 JSON Lines |
 
-#### 5.3.3 Ingestion Pipeline 层
+#### 5.3.3 Scripts 层（命令行入口）
+
+| 脚本 | 职责 | 关键技术点 |
+|-----|-----|----------|
+| `ingest.py` | 离线数据摄取入口 | CLI 参数解析，调用 Ingestion Pipeline，支持 `--collection`/`--path`/`--force` |
+| `query.py` | 在线查询测试入口 | CLI 参数解析，调用 HybridSearch + Reranker，支持 `--query`/`--top-k`/`--verbose` |
+| `evaluate.py` | 评估运行入口 | 加载 golden_test_set，运行评估，输出 metrics |
+| `start_dashboard.py` | Dashboard 启动入口 | Streamlit 应用启动 |
+
+#### 5.3.4 Ingestion Pipeline 层
 
 | 模块 | 职责 | 关键技术点 |
 |-----|-----|----------|
@@ -1484,7 +1494,7 @@ smart-knowledge-hub/
 | `storage/vector_upserter.py` | 向量存储写入 | 通过 `libs.vector_store` Upsert；幂等；metadata 完整 |
 
 
-#### 5.3.4 Libs 层 (可插拔抽象)
+#### 5.3.5 Libs 层 (可插拔抽象)
 
 | 抽象接口 | 当前默认实现 | 可替换选项 |
 |---------|------------|----------|
@@ -1498,7 +1508,7 @@ smart-knowledge-hub/
 | `Reranker` | CrossEncoder | LLM Rerank / None (关闭) |
 | `Evaluator` | Ragas | DeepEval / 自定义指标 |
 
-#### 5.3.5 Observability 层
+#### 5.3.6 Observability 层
 
 | 模块 | 职责 | 关键技术点 |
 |-----|-----|----------|
@@ -1753,7 +1763,7 @@ observability:
 | D1 | QueryProcessor（关键词提取 + filters） | [x] | 2026-02-24 | ✅ 关键词提取 + 规则过滤 + 18 测试 |
 | D2 | DenseRetriever（调用 VectorStore.query） | [x] | 2026-02-26 | ✅ query返回dict + 验证方法 + 9测试 |
 | D3 | SparseRetriever（BM25 查询） | [x] | 2026-02-26 | ✅ BM25检索 + get_by_ids + 9测试 |
-| D4 | RRF Fusion | [ ] | - | |
+| D4 | RRF Fusion | [x] | 2026-02-26 | ✅ RRF融合 + 10测试 |
 | D5 | HybridSearch 编排 | [ ] | - | |
 | D6 | Reranker（Core 层编排 + Fallback） | [ ] | - | |
 
@@ -1796,11 +1806,11 @@ observability:
 | 阶段 A | 3 | 3 | 100% |
 | 阶段 B | 16 | 16 | 100% |
 | 阶段 C | 15 | 15 | 100% |
-| 阶段 D | 6 | 3 | 50% |
+| 阶段 D | 6 | 4 | 67% |
 | 阶段 E | 6 | 0 | 0% |
 | 阶段 F | 5 | 0 | 0% |
 | 阶段 G | 4 | 0 | 0% |
-| **总计** | **55** | **37** | **67%** |
+| **总计** | **55** | **38** | **69%** |
 
 
 ---
@@ -2512,6 +2522,38 @@ observability:
 - **验收标准**：模拟后端异常时不影响最终返回，且标记 fallback=true。
 - **测试方法**：`pytest -q tests/unit/test_reranker_fallback.py`。
 
+### D7：脚本入口 query.py（查询可用）
+- **目标**：实现 `scripts/query.py`，作为在线查询的命令行入口，调用完整的 HybridSearch + Reranker 流程并输出检索结果。
+- **前置依赖**：D5（HybridSearch）、D6（Reranker）
+- **修改文件**：
+  - `scripts/query.py`
+- **实现功能**：
+  - **参数支持**：
+    - `--query "问题"`：必填，查询文本
+    - `--top-k 10`：可选，返回结果数量（默认 10）
+    - `--collection xxx`：可选，限定检索集合
+    - `--verbose`：可选，显示各阶段中间结果
+    - `--no-rerank`：可选，跳过 Reranker 阶段
+  - **输出内容**：
+    - 默认模式：Top-K 结果（序号、score、文本摘要、来源文件、页码）
+    - Verbose 模式：额外显示 Dense 召回结果、Sparse 召回结果、Fusion 结果、Rerank 结果
+  - **内部流程**：
+    1. 加载配置 `Settings`
+    2. 初始化组件（EmbeddingClient、VectorStore、BM25Indexer、Reranker）
+    3. 创建 `QueryProcessor`、`DenseRetriever`、`SparseRetriever`、`HybridSearch` 实例
+    4. 调用 `HybridSearch.search()` 获取候选结果
+    5. 调用 `Reranker.rerank()` 进行精排（除非 `--no-rerank`）
+    6. 格式化输出结果
+- **验收标准**：
+  - 命令行可运行：`python scripts/query.py --query "如何配置 Azure？"`
+  - 返回格式化的 Top-K 检索结果
+  - `--verbose` 模式显示各阶段中间结果（便于调试）
+  - 无数据时返回友好提示（如"未找到相关文档，请先运行 ingest.py 摄取数据"）
+- **测试方法**：手动运行 `python scripts/query.py --query "测试查询" --verbose`（依赖已摄取的数据）。
+- **与 MCP Tool 的关系**：
+  - `scripts/query.py` 是开发调试用的命令行工具
+  - `E3 query_knowledge_hub` 是生产环境的 MCP Tool
+  - 两者共享 Core 层逻辑（HybridSearch + Reranker），但入口和输出格式不同
 ---
 
 ## 阶段 E：MCP Server 层与 Tools（目标：对外可用的 MCP tools）
