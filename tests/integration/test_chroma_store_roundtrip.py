@@ -16,7 +16,7 @@ import tempfile
 from unittest.mock import MagicMock
 
 from libs.vector_store.chroma_store import ChromaStore
-from libs.vector_store.base_vector_store import VectorRecord, QueryResult
+from libs.vector_store.base_vector_store import VectorRecord
 
 
 # Mark all tests as integration tests
@@ -77,9 +77,12 @@ class TestChromaStoreIntegration:
         query_vec = [0.1, 0.2, 0.3]
         result = store.query(query_vector=query_vec, top_k=3)
 
+        # Extract ids from list[dict]
+        result_ids = [r["id"] for r in result]
+
         # Should return doc1 and doc3 (same vector)
-        assert len(result.ids) >= 2
-        assert "doc1" in result.ids or "doc3" in result.ids
+        assert len(result_ids) >= 2
+        assert "doc1" in result_ids or "doc3" in result_ids
 
     def test_query_with_filters(self, store):
         """Test query with metadata filters."""
@@ -114,11 +117,14 @@ class TestChromaStoreIntegration:
             filters={"category": "A"}
         )
 
+        # Extract ids from list[dict]
+        result_ids = [r["id"] for r in result]
+
         # Should only return category A records
-        assert len(result.ids) == 2
-        assert "cat_a_1" in result.ids
-        assert "cat_a_2" in result.ids
-        assert "cat_b_1" not in result.ids
+        assert len(result_ids) == 2
+        assert "cat_a_1" in result_ids
+        assert "cat_a_2" in result_ids
+        assert "cat_b_1" not in result_ids
 
     def test_delete_records(self, store):
         """Test deleting records."""
@@ -135,7 +141,8 @@ class TestChromaStoreIntegration:
 
         # Verify it exists
         result = store.query(query_vector=[0.1, 0.2, 0.3], top_k=10)
-        assert "to_delete" in result.ids
+        result_ids = [r["id"] for r in result]
+        assert "to_delete" in result_ids
 
         # Delete it
         success = store.delete(ids=["to_delete"])
@@ -143,7 +150,8 @@ class TestChromaStoreIntegration:
 
         # Verify it's gone
         result = store.query(query_vector=[0.1, 0.2, 0.3], top_k=10)
-        assert "to_delete" not in result.ids
+        result_ids = [r["id"] for r in result]
+        assert "to_delete" not in result_ids
 
     def test_count_records(self, store):
         """Test counting records."""
@@ -209,7 +217,8 @@ class TestChromaStoreIntegration:
 
         # Data should be available in the new store
         result = store2.query(query_vector=[0.1, 0.2, 0.3], top_k=10)
-        assert "persistent_doc" in result.ids
+        result_ids = [r["id"] for r in result]
+        assert "persistent_doc" in result_ids
 
 
 class TestChromaStoreFactory:

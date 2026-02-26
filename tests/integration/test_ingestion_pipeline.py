@@ -112,7 +112,7 @@ class TestIngestionPipelineWithRealComponents:
         settings = load_settings(str(project_root / "config" / "settings.yaml"))
 
         # Override directories to use temp directories
-        settings.vector_store.persist_directory = str(temp_dirs / "chroma")
+        # settings.vector_store.persist_directory = str(temp_dirs / "chroma")
 
         # Disable vision LLM for testing (would require API call)
         # settings.vision_llm.enabled = False
@@ -135,7 +135,7 @@ class TestIngestionPipelineWithRealComponents:
         # Note: DenseEncoder 需要真实的 API 调用，这里会调用 Qwen embedding API
         pipeline = IngestionPipeline(
             real_settings,
-            collection="test_collection",
+            collection="collection",
             force=True,
         )
 

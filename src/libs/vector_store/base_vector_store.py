@@ -9,7 +9,7 @@ Design Principles:
 """
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 from observability.logger import TraceContext
@@ -28,21 +28,6 @@ class VectorRecord:
     id: str
     vector: list[float]
     metadata: dict[str, Any] | None = None
-
-
-@dataclass
-class QueryResult:
-    """Result from a vector store query.
-
-    Attributes:
-        ids: List of matched record IDs
-        scores: Similarity scores for each match
-        metadata: Metadata for each matched record (aligned with ids)
-    """
-
-    ids: list[str]
-    scores: list[float]
-    metadata: list[dict[str, Any] | None] = field(default_factory=list)
 
 
 class BaseVectorStore(ABC):
@@ -99,7 +84,7 @@ class BaseVectorStore(ABC):
         filters: dict[str, Any] | None = None,
         trace: TraceContext | None = None,
         **kwargs: Any
-    ) -> QueryResult:
+    ) -> list[dict[str, Any]]:
         """Query the vector store for similar vectors.
 
         Args:
@@ -110,7 +95,7 @@ class BaseVectorStore(ABC):
             **kwargs: Additional arguments
 
         Returns:
-            QueryResult with matched IDs and scores
+            List of dicts with keys: id, score, text, metadata
 
         Raises:
             VectorStoreError: If query fails

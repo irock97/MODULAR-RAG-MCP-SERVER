@@ -177,3 +177,42 @@ class ProcessedQuery:
             raw_query=data["raw_query"],
             normalized_query=data["normalized_query"],
         )
+
+
+@dataclass(frozen=True)
+class RetrievalResult:
+    """Result from retrieval operations (dense or sparse).
+
+    Represents a single retrieved chunk with its relevance score
+    and metadata. This is the primary return type for retrieval operations.
+
+    Attributes:
+        chunk_id: Unique identifier for the retrieved chunk
+        score: Relevance score (higher is better)
+        text: Text content of the retrieved chunk
+        metadata: Additional metadata for the chunk
+    """
+
+    chunk_id: str
+    score: float
+    text: str
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "chunk_id": self.chunk_id,
+            "score": self.score,
+            "text": self.text,
+            "metadata": self.metadata,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "RetrievalResult":
+        """Create from dictionary."""
+        return cls(
+            chunk_id=data["chunk_id"],
+            score=data["score"],
+            text=data["text"],
+            metadata=data.get("metadata", {}),
+        )

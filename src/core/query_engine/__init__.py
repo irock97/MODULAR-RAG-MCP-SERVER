@@ -1,4 +1,5 @@
 # Query Engine - Hybrid search and retrieval
+from core.query_engine.dense_retriever import DenseRetriever
 from core.query_engine.query_processor import (
     QueryProcessor,
     QueryProcessorConfig,
@@ -7,6 +8,7 @@ from core.query_engine.query_processor import (
 )
 
 __all__ = [
+    "DenseRetriever",
     "QueryProcessor",
     "QueryProcessorConfig",
     "QueryResult",

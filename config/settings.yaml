@@ -99,7 +99,7 @@ ingestion:
 # Vision LLM Configuration (for Image Captioning)
 # =============================================================================
 vision_llm:
-  enabled: true  # Set to true to enable vision capabilities
+  enabled: false  # Set to true to enable vision capabilities
   provider: "qwen"  # Options: qwen, azure, openai, ollama
   model: "qwen-vl-max"  # Options: qwen-vl-max, qwen-vl-plus (Qwen), gpt-4o (OpenAI/Azure)
   max_image_size: 2048  # Max dimension (width/height) for image compression

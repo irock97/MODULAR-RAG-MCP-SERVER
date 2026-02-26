@@ -3,7 +3,6 @@
 from libs.vector_store.base_vector_store import (
     BaseVectorStore,
     VectorRecord,
-    QueryResult,
     VectorStoreError,
     VectorStoreConfigurationError,
     UnknownVectorStoreProviderError,
@@ -17,7 +16,6 @@ __all__ = [
     # Base
     "BaseVectorStore",
     "VectorRecord",
-    "QueryResult",
     "VectorStoreError",
     "VectorStoreConfigurationError",
     "UnknownVectorStoreProviderError",

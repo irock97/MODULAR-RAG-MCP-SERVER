@@ -15,7 +15,6 @@ from typing import Any
 from libs.vector_store.base_vector_store import (
     BaseVectorStore,
     VectorRecord,
-    QueryResult,
     VectorStoreConfigurationError,
 )
 from observability.logger import TraceContext, get_logger
@@ -167,7 +166,7 @@ class ChromaStore(BaseVectorStore):
         filters: dict[str, Any] | None = None,
         trace: TraceContext | None = None,
         **kwargs: Any
-    ) -> QueryResult:
+    ) -> list[dict[str, Any]]:
         """Query the vector store for similar vectors.
 
         Args:
@@ -178,13 +177,13 @@ class ChromaStore(BaseVectorStore):
             **kwargs: Additional arguments
 
         Returns:
-            QueryResult with matched IDs and scores
+            List of dicts with keys: id, score, text, metadata
 
         Raises:
             VectorStoreConfigurationError: If query fails
         """
         if not query_vector:
-            return QueryResult(ids=[], scores=[], metadata=[])
+            return []
 
         logger.info(
             f"ChromaStore query: top_k={top_k}, "
@@ -221,6 +220,7 @@ class ChromaStore(BaseVectorStore):
             ids = results.get("ids", [[]])[0] if results.get("ids") else []
             distances = results.get("distances", [[]])[0] if results.get("distances") else []
             metadatas = results.get("metadatas", [[]])[0] if results.get("metadatas") else []
+            documents = results.get("documents", [[]])[0] if results.get("documents") else []
 
             # Convert distances to similarity scores (ChromaDB uses distances)
             # Lower distance = higher similarity
@@ -230,11 +230,18 @@ class ChromaStore(BaseVectorStore):
                 f"ChromaStore query complete: {len(ids)} results"
             )
 
-            return QueryResult(
-                ids=ids,
-                scores=scores,
-                metadata=metadatas,
-            )
+            # Build list of dicts
+            results_list: list[dict[str, Any]] = []
+            for i, chunk_id in enumerate(ids):
+                result = {
+                    "id": chunk_id,
+                    "score": scores[i] if i < len(scores) else 0.0,
+                    "text": documents[i] if i < len(documents) else "",
+                    "metadata": metadatas[i] if i < len(metadatas) else {},
+                }
+                results_list.append(result)
+
+            return results_list
 
         except Exception as e:
             raise VectorStoreConfigurationError(

@@ -187,9 +187,9 @@ class IngestionPipeline:
         logger.info(f"  ✓ BatchProcessor initialized (batch_size={batch_size})")
 
         # Stage 6: Storage
-        vector_store = VectorStoreFactory.create(settings)
+        vector_store = VectorStoreFactory.create(settings, collection_name=collection)
         self.vector_upserter = VectorUpserter(vector_store)
-        logger.info(f"  ✓ VectorUpserter initialized (provider={vector_store.provider_name})")
+        logger.info(f"  ✓ VectorUpserter initialized (provider={vector_store.provider_name}, collection={collection})")
 
         self.bm25_indexer = BM25Indexer(index_dir=f"data/db/bm25/{collection}")
         logger.info("  ✓ BM25Indexer initialized")
