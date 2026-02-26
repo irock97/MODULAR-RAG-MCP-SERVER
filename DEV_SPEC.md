@@ -1765,7 +1765,7 @@ observability:
 | D3 | SparseRetriever（BM25 查询） | [x] | 2026-02-26 | ✅ BM25检索 + get_by_ids + 9测试 |
 | D4 | RRF Fusion | [x] | 2026-02-26 | ✅ RRF融合 + 10测试 |
 | D5 | HybridSearch 编排 | [x] | 2026-02-26 | ✅ HybridSearch + 14测试 + 并行检索 + 复杂过滤 |
-| D6 | Reranker（Core 层编排 + Fallback） | [ ] | - | |
+| D6 | Reranker（Core 层编排 + Fallback） | [x] | 2026-02-26 | ✅ CoreReranker + 17测试 + Candidate.metadata |
 
 #### 阶段 E：MCP Server 层与 Tools
 
@@ -1806,11 +1806,11 @@ observability:
 | 阶段 A | 3 | 3 | 100% |
 | 阶段 B | 16 | 16 | 100% |
 | 阶段 C | 15 | 15 | 100% |
-| 阶段 D | 6 | 5 | 83% |
+| 阶段 D | 6 | 6 | 100% |
 | 阶段 E | 6 | 0 | 0% |
 | 阶段 F | 5 | 0 | 0% |
 | 阶段 G | 4 | 0 | 0% |
-| **总计** | **55** | **39** | **71%** |
+| **总计** | **55** | **40** | **73%** |
 
 
 ---

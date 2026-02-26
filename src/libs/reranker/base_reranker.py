@@ -39,11 +39,13 @@ class Candidate:
         id: Unique identifier for the candidate
         content: Text content of the candidate
         score: Original relevance score (from retrieval)
+        metadata: Additional metadata for the candidate
     """
 
     id: str
     content: str
     score: float | None = None
+    metadata: dict[str, Any] | None = None
 
 
 class BaseReranker(ABC):

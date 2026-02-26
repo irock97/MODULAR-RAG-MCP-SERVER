@@ -14,8 +14,21 @@ from core.query_engine.query_processor import (
     create_query_processor,
 )
 from core.query_engine.sparse_retriever import SparseRetriever
+from core.query_engine.reranker import (
+    CoreReranker,
+    CoreRerankerConfig,
+    CoreRerankerResult,
+    Reranker,
+    RerankerConfig,
+    RerankerResult,
+    create_core_reranker,
+    create_reranker,
+)
 
 __all__ = [
+    "CoreReranker",
+    "CoreRerankerConfig",
+    "CoreRerankerResult",
     "DenseRetriever",
     "HybridSearch",
     "HybridSearchConfig",
@@ -23,8 +36,13 @@ __all__ = [
     "QueryProcessor",
     "QueryProcessorConfig",
     "QueryResult",
+    "Reranker",
+    "RerankerConfig",
+    "RerankerResult",
     "RRFFusion",
     "SparseRetriever",
+    "create_core_reranker",
     "create_hybrid_search",
     "create_query_processor",
+    "create_reranker",
 ]
