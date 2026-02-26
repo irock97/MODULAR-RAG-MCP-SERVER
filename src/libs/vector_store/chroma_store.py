@@ -361,6 +361,74 @@ class ChromaStore(BaseVectorStore):
                 provider=self.provider_name
             )
 
+    def get_by_ids(
+        self,
+        ids: list[str],
+        trace: TraceContext | None = None,
+        **kwargs: Any
+    ) -> list[dict[str, Any]]:
+        """Get records by their IDs.
+
+        Args:
+            ids: List of record IDs to retrieve
+            trace: Tracing context for observability
+            **kwargs: Additional arguments
+
+        Returns:
+            List of dicts with keys: id, text, metadata.
+            Returns results in the same order as input ids.
+            If an ID doesn't exist, returns an empty dict for that position.
+
+        Example:
+            >>> results = store.get_by_ids(["chunk1", "chunk2"])
+            >>> # Returns: [{"id": "chunk1", "text": "...", "metadata": {...}},
+            >>> #          {"id": "chunk2", "text": "", "metadata": {}}]
+        """
+        if not ids:
+            return []
+
+        logger.info(f"ChromaStore get_by_ids: id_count={len(ids)}")
+
+        try:
+            # Use ChromaDB's get method to retrieve by IDs
+            result = self._collection.get(ids=ids)
+
+            # Build lookup from ChromaDB result
+            records_by_id: dict[str, dict[str, Any]] = {}
+            if result and result.get("ids"):
+                returned_ids = result["ids"]
+                documents = result.get("documents", [])
+                metadatas = result.get("metadatas", [])
+
+                for i, chunk_id in enumerate(returned_ids):
+                    text = documents[i] if i < len(documents) else ""
+                    metadata = metadatas[i] if i < len(metadatas) else {}
+
+                    records_by_id[chunk_id] = {
+                        "id": chunk_id,
+                        "text": text,
+                        "metadata": metadata,
+                    }
+
+            # Maintain input order, fill missing with empty dict
+            records: list[dict[str, Any]] = []
+            for chunk_id in ids:
+                records.append(records_by_id.get(chunk_id, {
+                    "id": chunk_id,
+                    "text": "",
+                    "metadata": {},
+                }))
+
+            logger.info(f"ChromaStore get_by_ids: found {len(records_by_id)}/{len(ids)} records")
+            return records
+
+        except Exception as e:
+            raise VectorStoreConfigurationError(
+                f"Failed to get records by IDs: {e}",
+                provider=self.provider_name,
+                details={"id_count": len(ids)}
+            )
+
     def __repr__(self) -> str:
         """Return string representation."""
         return (

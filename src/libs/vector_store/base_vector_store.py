@@ -145,6 +145,28 @@ class BaseVectorStore(ABC):
         ...
 
     @abstractmethod
+    def get_by_ids(
+        self,
+        ids: list[str],
+        trace: TraceContext | None = None,
+        **kwargs: Any
+    ) -> list[dict[str, Any]]:
+        """Get records by their IDs.
+
+        Args:
+            ids: List of record IDs to retrieve
+            trace: Tracing context for observability
+            **kwargs: Additional arguments
+
+        Returns:
+            List of dicts with keys: id, text, metadata
+
+        Raises:
+            VectorStoreError: If retrieval fails
+        """
+        ...
+
+    @abstractmethod
     def clear(
         self,
         trace: TraceContext | None = None,

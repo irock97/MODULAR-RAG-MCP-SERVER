@@ -6,11 +6,13 @@ from core.query_engine.query_processor import (
     QueryResult,
     create_query_processor,
 )
+from core.query_engine.sparse_retriever import SparseRetriever
 
 __all__ = [
     "DenseRetriever",
     "QueryProcessor",
     "QueryProcessorConfig",
     "QueryResult",
+    "SparseRetriever",
     "create_query_processor",
 ]

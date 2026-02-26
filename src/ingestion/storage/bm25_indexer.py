@@ -301,17 +301,17 @@ class BM25Indexer:
 
     def search(
         self,
-        query: str,
+        query_terms: list[str],
         top_k: int = 10,
         trace: TraceContext | None = None,
     ) -> list[tuple[str, float]]:
         """Search the index for matching documents.
 
-        This method computes BM25 scores for the query and returns
+        This method computes BM25 scores for the query terms and returns
         the top-k matching documents.
 
         Args:
-            query: Search query string.
+            query_terms: List of query terms (e.g., ["machine", "learning"]).
             top_k: Number of top results to return.
             trace: Optional trace context.
 
@@ -320,7 +320,7 @@ class BM25Indexer:
             [('doc1', 0.8), ('doc2', 0.6), ('doc3', 0.9)]
 
         Example:
-            >>> results = indexer.search("machine learning", top_k=5)
+            >>> results = indexer.search(["machine", "learning"], top_k=5)
             >>> for chunk_id, score in results:
             ...     print(f"{chunk_id}: {score:.4f}")
         """
@@ -328,11 +328,8 @@ class BM25Indexer:
             logger.warning("Index is empty, returning empty results")
             return []
 
-        # Tokenize query
-        query_terms = self._tokenize_query(query)
-
         if not query_terms:
-            logger.info("Empty query, returning empty results")
+            logger.info("Empty query terms, returning empty results")
             return []
 
         logger.info(
@@ -343,7 +340,6 @@ class BM25Indexer:
             trace.record_stage(
                 "bm25_search_start",
                 {
-                    "query": query,
                     "query_terms": query_terms,
                     "top_k": top_k,
                 },
@@ -381,18 +377,6 @@ class BM25Indexer:
             )
 
         return results
-
-    def _tokenize_query(self, query: str) -> list[str]:
-        """Tokenize a query string.
-
-        Args:
-            query: Query string to tokenize.
-
-        Returns:
-            List of lowercase tokens.
-        """
-        # Simple whitespace tokenization and lowercasing
-        return [t.lower() for t in query.split() if t.strip()]
 
     def save(self) -> None:
         """Serialize the index to disk.
