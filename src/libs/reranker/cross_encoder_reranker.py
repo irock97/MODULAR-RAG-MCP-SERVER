@@ -134,10 +134,10 @@ class CrossEncoderReranker(BaseReranker):
 
         try:
             # Use mock scorer if provided
-            if self._scorer is not None:
-                scores = self._mock_score(query, candidates)
-            else:
-                scores = self._score_with_model(query, candidates)
+            # if self._scorer is not None:
+            #     scores = self._mock_score(query, candidates)
+            # else:
+            scores = self._score_with_model(query, candidates)
 
             # Combine scores with candidates
             scored = list(zip([c.id for c in candidates], scores))
@@ -179,20 +179,20 @@ class CrossEncoderReranker(BaseReranker):
                 details={"candidate_count": len(candidates)}
             )
 
-    def _mock_score(self, query: str, candidates: list[Candidate]) -> list[float]:
-        """Mock scoring for testing.
-
-        Args:
-            query: The search query
-            candidates: Candidates to score
-
-        Returns:
-            List of scores (higher = more relevant)
-        """
-        if self._scorer is not None:
-            texts = [c.content for c in candidates]
-            return self._scorer(query, texts)
-        return [0.0] * len(candidates)
+    # def _mock_score(self, query: str, candidates: list[Candidate]) -> list[float]:
+    #     """Mock scoring for testing.
+    #
+    #     Args:
+    #         query: The search query
+    #         candidates: Candidates to score
+    #
+    #     Returns:
+    #         List of scores (higher = more relevant)
+    #     """
+    #     if self._scorer is not None:
+    #         texts = [c.content for c in candidates]
+    #         return self._scorer(query, texts)
+    #     return [0.0] * len(candidates)
 
     def _score_with_model(self, query: str, candidates: list[Candidate]) -> list[float]:
         """Score using Cross-Encoder model.
@@ -203,47 +203,63 @@ class CrossEncoderReranker(BaseReranker):
 
         Returns:
             List of scores (higher = more relevant)
+
+        Raises:
+            RerankerConfigurationError: If model loading or scoring fails
         """
         try:
             from sentence_transformers import CrossEncoder
-        except ImportError:
+        except ImportError as e:
             logger.warning(
-                "sentence-transformers not installed. "
+                f"sentence-transformers not installed or has dependency issue: {e}. "
                 "Install with: pip install sentence-transformers"
             )
-            # Fallback to uniform scores
-            return [1.0 / (i + 1) for i in range(len(candidates))]
+            raise RerankerConfigurationError(
+                f"sentence-transformers not available: {e}. "
+                "Install with: pip install sentence-transformers",
+                provider=self.provider_name,
+            )
+        except Exception as e:
+            logger.error(f"Unexpected error importing sentence-transformers: {e}")
+            raise RerankerConfigurationError(
+                f"Failed to import sentence-transformers: {e}",
+                provider=self.provider_name,
+            )
 
         # Initialize model if needed
         if self._cross_encoder is None:
             try:
                 self._cross_encoder = CrossEncoder(self._model)
             except Exception as e:
-                logger.warning(f"Failed to load Cross-Encoder model: {e}")
-                return [1.0 / (i + 1) for i in range(len(candidates))]
+                logger.warning(f"Failed to load Cross-Encoder model '{self._model}': {e}")
+                raise RerankerConfigurationError(
+                    f"Failed to load Cross-Encoder model '{self._model}': {e}",
+                    provider=self.provider_name,
+                )
 
         # Prepare query-candidate pairs
         texts = [c.content for c in candidates]
         pairs = [[query, text] for text in texts]
 
-        # Score in batches
-        scores = []
-        for i in range(0, len(pairs), self._batch_size):
-            batch = pairs[i : i + self._batch_size]
-            batch_scores = self._cross_encoder.predict(
-                batch,
-                activation_fns=[],
-                apply_softmax=False,
-            )
+        try:
+            # Score all pairs at once (CrossEncoder handles batching internally)
+            batch_scores = self._cross_encoder.predict(pairs)
+
             # Handle different output shapes
             if hasattr(batch_scores, "tolist"):
-                batch_scores = batch_scores.tolist()
-            if isinstance(batch_scores, float):
-                scores.append(batch_scores)
+                scores = batch_scores.tolist()
+            elif isinstance(batch_scores, float):
+                scores = [batch_scores]
             else:
-                scores.extend(batch_scores)
+                scores = list(batch_scores)
 
-        return scores
+            return scores
+        except Exception as e:
+            logger.error(f"Cross-Encoder prediction failed: {e}")
+            raise RerankerConfigurationError(
+                f"Cross-Encoder prediction failed: {e}",
+                provider=self.provider_name,
+            )
 
     def rerank_with_threshold(
         self,
