@@ -22,6 +22,7 @@ from mcp_server.protocol_handler import (
 from mcp_server.tools import (
     register_query_knowledge_hub_tool,
     register_list_collections_tool,
+    register_document_summary_tool,
 )
 
 logger = get_logger("mcp_server")
@@ -38,6 +39,9 @@ def _register_tools(protocol_handler: ProtocolHandler) -> None:
 
     # Register list_collections tool
     register_list_collections_tool(protocol_handler)
+
+    # Register get_document_summary tool
+    register_document_summary_tool(protocol_handler)
 
 
 async def run_stdio_server() -> int:

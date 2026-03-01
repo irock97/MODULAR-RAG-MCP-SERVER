@@ -1775,7 +1775,7 @@ observability:
 | E2 | Protocol Handler 协议解析与能力协商 | [x] | 2026-03-01 | ✅ 使用官方 MCP SDK，14 测试通过 |
 | E3 | query_knowledge_hub Tool | [x] | 2026-03-01 | ✅ HybridSearch + Reranker + Citation，31 测试通过 |
 | E4 | list_collections Tool | [x] | 2026-03-01 | ✅ 列出ChromaDB集合+统计，10测试通过 |
-| E5 | get_document_summary Tool | [ ] | - | |
+| E5 | get_document_summary Tool | [x] | 2026-03-01 | ✅ 按 doc_id 查询文档摘要，支持指定 collection |
 | E6 | 多模态返回组装（Text + Image） | [ ] | - | |
 
 #### 阶段 F：Observability + Evaluation
@@ -1807,7 +1807,7 @@ observability:
 | 阶段 B | 16 | 16 | 100% |
 | 阶段 C | 15 | 15 | 100% |
 | 阶段 D | 6 | 6 | 100% |
-| 阶段 E | 6 | 4 | 67% |
+| 阶段 E | 6 | 5 | 83% |
 | 阶段 F | 5 | 0 | 0% |
 | 阶段 G | 4 | 0 | 0% |
 | **总计** | **55** | **44** | **80%** |
