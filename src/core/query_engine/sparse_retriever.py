@@ -248,11 +248,22 @@ class SparseRetriever:
         if self._bm25_indexer is not None:
             class_name = self._bm25_indexer.__class__.__name__
             if class_name == "BM25Indexer":
-                # User provided a real BM25Indexer, check collection match
-                if self._bm25_indexer.collection == collection:
+                # User provided a real BM25Indexer, check if index is already loaded
+                # Load if index is empty (not yet loaded from disk)
+                if self._bm25_indexer.num_docs == 0:
+                    logger.info(f"BM25 index not loaded, attempting to load for collection '{collection}'")
+                    loaded = self._bm25_indexer.load(collection=collection)
+                    if not loaded:
+                        logger.warning(f"BM25 index not found for collection '{collection}', index is empty")
                     return
-                # Different collection requested, need to reload
-                logger.info(f"Switching BM25 index from {self._bm25_indexer.collection} to {collection}")
+                # Index already loaded, check collection match
+                if self._bm25_indexer.collection != collection:
+                    # Different collection requested, need to reload
+                    logger.info(f"Switching BM25 index from {self._bm25_indexer.collection} to {collection}")
+                    loaded = self._bm25_indexer.load(collection=collection)
+                    if not loaded:
+                        logger.warning(f"BM25 index not found for collection '{collection}', index is empty")
+                return
             # If it's a mock or other type, don't overwrite - use as-is
             return
 
@@ -323,3 +334,37 @@ class SparseRetriever:
             f"vector_store={self._vector_store}, "
             f"default_top_k={self.default_top_k})"
         )
+
+
+# =============================================================================
+# Factory Function
+# =============================================================================
+
+
+def create_sparse_retriever(
+    settings: Settings | None = None,
+    bm25_indexer: Any | None = None,
+    vector_store: BaseVectorStore | None = None,
+) -> SparseRetriever:
+    """Create a SparseRetriever with optional configuration.
+
+    Args:
+        settings: Settings object for configuration
+        bm25_indexer: Optional BM25 indexer. If None, created from default path.
+        vector_store: Optional vector store. If None, created from settings.
+
+    Returns:
+        Configured SparseRetriever instance
+    """
+    # Create vector store if not provided
+    if vector_store is None and settings is not None:
+        from libs.vector_store.vector_store_factory import VectorStoreFactory
+
+        collection_name = getattr(settings.retrieval, "collection", "default")
+        vector_store = VectorStoreFactory.create(settings, collection_name=collection_name)
+
+    return SparseRetriever(
+        settings=settings,
+        bm25_indexer=bm25_indexer,
+        vector_store=vector_store,
+    )

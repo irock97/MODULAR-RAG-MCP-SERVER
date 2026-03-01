@@ -9,6 +9,13 @@ from mcp_server.protocol_handler import (
     create_mcp_server,
     get_protocol_handler,
 )
+from mcp_server.tools import (
+    QueryKnowledgeHubTool,
+    get_tool_definition,
+    get_tool_instance,
+    query_knowledge_hub_handler,
+    register_tool,
+)
 
 __all__ = [
     "main",
@@ -18,4 +25,9 @@ __all__ = [
     "JSONRPCErrorCodes",
     "create_mcp_server",
     "get_protocol_handler",
+    "QueryKnowledgeHubTool",
+    "get_tool_definition",
+    "get_tool_instance",
+    "query_knowledge_hub_handler",
+    "register_tool",
 ]

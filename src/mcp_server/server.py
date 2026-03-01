@@ -13,18 +13,29 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
+from observability.logger import get_logger
 from mcp_server.protocol_handler import (
     ProtocolHandler,
     create_mcp_server,
     get_protocol_handler,
 )
+from mcp_server.tools import register_tool, get_tool_definition
+
+logger = get_logger("mcp_server")
+
+
+def _register_tools(protocol_handler: ProtocolHandler) -> None:
+    """Register MCP tools with the protocol handler.
+
+    Args:
+        protocol_handler: ProtocolHandler instance to register tools with
+    """
+    # Register query_knowledge_hub tool using the register_tool function
+    register_tool(protocol_handler)
 
 
 async def run_stdio_server() -> int:
     """Run MCP server over stdio using official MCP SDK."""
-    from observability.logger import get_logger
-
-    logger = get_logger("mcp_server.stdio")
     logger.info("Starting MCP server (stdio transport with MCP SDK).")
 
     # Create protocol handler
@@ -32,6 +43,9 @@ async def run_stdio_server() -> int:
         server_name="modular-rag-mcp-server",
         server_version="1.0.0",
     )
+
+    # Register tools
+    _register_tools(protocol_handler)
 
     # Create MCP server with protocol handler
     server = create_mcp_server(

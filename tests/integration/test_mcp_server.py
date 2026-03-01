@@ -316,5 +316,67 @@ class TestMCPServerCreation:
         assert handler.server_version == "1.0.0"
 
 
+class TestQueryKnowledgeHubTool:
+    """Test query_knowledge_hub tool."""
+
+    def test_tool_definition(self):
+        """Test tool definition is correct."""
+        from mcp_server.tools import get_tool_definition
+
+        tool_def = get_tool_definition()
+        assert tool_def["name"] == "query_knowledge_hub"
+        assert "query" in tool_def["input_schema"]["properties"]
+        assert "top_k" in tool_def["input_schema"]["properties"]
+        assert "collection" in tool_def["input_schema"]["properties"]
+
+    def test_tool_creation(self):
+        """Test creating QueryKnowledgeHubTool instance."""
+        from mcp_server.tools import QueryKnowledgeHubTool
+
+        tool = QueryKnowledgeHubTool()
+        assert tool is not None
+
+    @pytest.mark.asyncio
+    async def test_tool_empty_query(self):
+        """Test tool handles empty query."""
+        from mcp_server.tools import QueryKnowledgeHubTool
+        from core.response import CitationGenerator, ResponseBuilder
+        from core.types import RetrievalResult
+
+        # Create a tool with mocked components
+        tool = QueryKnowledgeHubTool.__new__(QueryKnowledgeHubTool)
+        tool._settings = None
+        tool._hybrid_search = None
+        tool._reranker = None
+        tool._response_builder = ResponseBuilder()
+        tool._initialized = True
+
+        # Empty query should raise ValueError
+        with pytest.raises(ValueError, match="cannot be empty"):
+            await tool.execute(query="", top_k=5, collection="default")
+
+    def test_response_builder_with_citations(self):
+        """Test response builder generates citations."""
+        from core.response import ResponseBuilder
+        from core.types import RetrievalResult
+
+        results = [
+            RetrievalResult(
+                chunk_id="test#1",
+                score=0.95,
+                text="Test content",
+                metadata={"source": "test.pdf", "page": 1},
+            ),
+        ]
+
+        builder = ResponseBuilder()
+        response = builder.build(results=results, query="test", collection="default")
+
+        assert len(response.citations) == 1
+        assert response.citations[0].chunk_id == "test#1"
+        assert response.citations[0].source == "test.pdf"
+        assert response.citations[0].page == 1
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

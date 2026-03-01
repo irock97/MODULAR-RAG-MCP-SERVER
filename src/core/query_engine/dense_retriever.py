@@ -123,7 +123,7 @@ class DenseRetriever:
 
         # Step 1: Generate query embedding
         query_vectors = self.embedding_client.embed([query], trace=trace)
-        query_vector = query_vectors[0]
+        query_vector = query_vectors.vectors[0]
         logger.debug(f"Generated query embedding: {len(query_vector)} dims")
 
         if trace:
@@ -228,3 +228,43 @@ class DenseRetriever:
                 continue
 
         return results
+
+
+# =============================================================================
+# Factory Function
+# =============================================================================
+
+
+def create_dense_retriever(
+    settings: Settings | None = None,
+    embedding_client: BaseEmbedding | None = None,
+    vector_store: BaseVectorStore | None = None,
+) -> DenseRetriever:
+    """Create a DenseRetriever with optional configuration.
+
+    Args:
+        settings: Settings object for configuration
+        embedding_client: Optional embedding client. If None, created from settings.
+        vector_store: Optional vector store. If None, created from settings.
+
+    Returns:
+        Configured DenseRetriever instance
+    """
+    # Create embedding client if not provided
+    if embedding_client is None and settings is not None:
+        from libs.embedding.embedding_factory import EmbeddingFactory
+
+        embedding_client = EmbeddingFactory.create(settings)
+
+    # Create vector store if not provided
+    if vector_store is None and settings is not None:
+        from libs.vector_store.vector_store_factory import VectorStoreFactory
+
+        collection_name = getattr(settings.retrieval, "collection", "default")
+        vector_store = VectorStoreFactory.create(settings, collection_name=collection_name)
+
+    return DenseRetriever(
+        settings=settings,
+        embedding_client=embedding_client,
+        vector_store=vector_store,
+    )
