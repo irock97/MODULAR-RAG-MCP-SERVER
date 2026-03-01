@@ -120,6 +120,9 @@ class PdfLoader(BaseLoader):
             # Extract markdown content
             text_content = result.text_content
 
+            # Build page boundaries metadata for chunker to track page numbers
+            page_boundaries = self._get_page_boundaries(path)
+
             # Build metadata
             metadata: dict[str, Any] = {
                 "source_path": str(path.absolute()),
@@ -128,6 +131,10 @@ class PdfLoader(BaseLoader):
                 "file_size": path.stat().st_size,
                 "modified_at": datetime.fromtimestamp(path.stat().st_mtime).isoformat(),
             }
+
+            # Add page boundaries if available
+            if page_boundaries:
+                metadata["page_boundaries"] = page_boundaries
 
             # Extract images if enabled
             images_metadata: list[dict[str, Any]] = []
@@ -271,6 +278,45 @@ class PdfLoader(BaseLoader):
             )
 
         return modified_text, images_metadata
+
+    def _get_page_boundaries(self, path: Path) -> list[int]:
+        """Get character offsets where each page starts in the text.
+
+        This enables the chunker to track which page each chunk belongs to.
+
+        Args:
+            path: Path to the PDF file.
+
+        Returns:
+            List of character offsets (start position) for each page.
+            E.g., [0, 1500, 3200] means page 1 starts at char 0,
+            page 2 at char 1500, page 3 at char 3200.
+        """
+        try:
+            import fitz  # PyMuPDF
+        except ImportError:
+            return []
+
+        try:
+            doc = fitz.open(path)
+            boundaries = []
+            cumulative_offset = 0
+
+            for page_num in range(len(doc)):
+                page = doc[page_num]
+                page_text = page.get_text("text") or ""
+                # Clean the text the same way as MarkItDown does
+                page_text = "\n".join(
+                    line.strip() for line in page_text.split("\n") if line.strip()
+                )
+                cumulative_offset += len(page_text) + 1  # +1 for page separator
+                boundaries.append(cumulative_offset)
+
+            doc.close()
+            return boundaries
+        except Exception as e:
+            logger.warning(f"Failed to get page boundaries for {path}: {e}")
+            return []
 
     def _compute_file_hash(self, path: Path) -> str:
         """Compute SHA256 hash of the file for ID generation.

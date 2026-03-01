@@ -151,7 +151,10 @@ class QwenLLM(BaseLLM):
         """
         payload = {
             "model": self._model,
-            "messages": [msg.model_dump() for msg in messages],
+            "messages": [
+                msg if isinstance(msg, dict) else msg.model_dump()
+                for msg in messages
+            ],
             "temperature": temperature if temperature is not None else self._temperature,
             "max_tokens": max_tokens if max_tokens is not None else self._max_tokens,
         }
@@ -223,7 +226,10 @@ class QwenLLM(BaseLLM):
         """
         payload = {
             "model": self._model,
-            "messages": [msg.model_dump() for msg in messages],
+            "messages": [
+                msg if isinstance(msg, dict) else msg.model_dump()
+                for msg in messages
+            ],
             "temperature": temperature if temperature is not None else self._temperature,
             "max_tokens": max_tokens if max_tokens is not None else self._max_tokens,
             "stream": True,

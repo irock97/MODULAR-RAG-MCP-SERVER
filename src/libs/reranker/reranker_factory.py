@@ -182,12 +182,24 @@ class RerankerFactory:
             "top_k": getattr(rerank_config, "top_k", None),
         }
 
+        # For 'llm' provider, auto-create LLM from settings
+        if provider == "llm":
+            try:
+                from libs.llm.llm_factory import LLMFactory
+
+                llm = LLMFactory.create(settings)
+                init_kwargs["llm"] = llm
+                logger.info(f"Auto-created LLM for reranker: provider={settings.llm.provider}, model={settings.llm.model}")
+            except Exception as e:
+                logger.warning(f"Failed to auto-create LLM for reranker: {e}")
+                # Don't raise here, let the LLMReranker handle the error
+
         # Apply overrides
         for key, value in kwargs.items():
             if value is not None:
                 init_kwargs[key] = value
 
-        # Remove None values
+        # Remove None values (but keep llm if it was set)
         init_kwargs = {k: v for k, v in init_kwargs.items() if v is not None}
 
         # Create the instance

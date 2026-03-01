@@ -143,6 +143,10 @@ class VectorUpserter:
         # Convert complex types (dicts, lists, etc.) to JSON strings
         metadata = self._convert_metadata_for_chroma(record.metadata)
 
+        # Include text content in metadata for retrieval
+        if record.text:
+            metadata["text"] = record.text
+
         return VectorRecord(
             id=chunk_id,
             vector=record.dense_vector,

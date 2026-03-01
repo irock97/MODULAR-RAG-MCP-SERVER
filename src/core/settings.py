@@ -83,11 +83,19 @@ class RetrievalConfig:
         sparse_top_k: Top-K results from sparse retrieval
         fusion_top_k: Final top-K after fusion
         rrf_k: RRF ranking constant
+        enable_dense: Whether to use dense retrieval
+        enable_sparse: Whether to use sparse retrieval
+        parallel_retrieval: Whether to run retrievals in parallel
+        metadata_filter_post: Apply metadata filters after fusion
     """
     dense_top_k: int = 20
     sparse_top_k: int = 20
     fusion_top_k: int = 10
     rrf_k: int = 60
+    enable_dense: bool = True
+    enable_sparse: bool = True
+    parallel_retrieval: bool = True
+    metadata_filter_post: bool = True
 
 
 @dataclass
@@ -431,6 +439,10 @@ def _yaml_to_settings(data: dict[str, Any]) -> Settings:
             sparse_top_k=data.get("sparse_top_k", 20),
             fusion_top_k=data.get("fusion_top_k", 10),
             rrf_k=data.get("rrf_k", 60),
+            enable_dense=data.get("enable_dense", True),
+            enable_sparse=data.get("enable_sparse", True),
+            parallel_retrieval=data.get("parallel_retrieval", True),
+            metadata_filter_post=data.get("metadata_filter_post", True),
         )
 
     def _build_rerank(data: dict[str, Any]) -> RerankConfig:

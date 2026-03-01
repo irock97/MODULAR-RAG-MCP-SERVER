@@ -204,6 +204,22 @@ def main() -> int:
         print(f"[FAIL] Failed to load configuration: {e}")
         return 2
 
+    # Register splitter providers
+    try:
+        from libs.splitter.splitter_factory import SplitterFactory
+        from libs.splitter.recursive_splitter import RecursiveSplitter
+        SplitterFactory.register("recursive", RecursiveSplitter)
+    except Exception as e:
+        print(f"[WARN] Failed to register splitter providers: {e}")
+
+    # Register vector store providers
+    try:
+        from libs.vector_store.vector_store_factory import VectorStoreFactory
+        from libs.vector_store.chroma_store import ChromaStore
+        VectorStoreFactory.register("chroma", ChromaStore)
+    except Exception as e:
+        print(f"[WARN] Failed to register vector store providers: {e}")
+
     # Discover files
     try:
         files = discover_files(args.path)
@@ -227,15 +243,25 @@ def main() -> int:
         print("\n[INFO] Dry run mode - no files were processed")
         return 0
 
+    # Resolve collection: CLI > settings.vector_store.collection_name > default
+    collection = args.collection
+    if collection == "default":
+        # If CLI not explicitly set, try to get from settings
+        vector_store = getattr(settings, "vector_store", None)
+        if vector_store:
+            settings_collection = getattr(vector_store, "collection_name", None)
+            if settings_collection:
+                collection = settings_collection
+
     # Initialize pipeline
     print(f"\n[INFO] Initializing pipeline...")
-    print(f"   Collection: {args.collection}")
+    print(f"   Collection: {collection}")
     print(f"   Force: {args.force}")
 
     try:
         pipeline = IngestionPipeline(
             settings=settings,
-            collection=args.collection,
+            collection=collection,
             force=args.force
         )
     except Exception as e:

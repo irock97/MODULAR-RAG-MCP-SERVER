@@ -13,7 +13,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from libs.llm.base_llm import BaseLLM
+from libs.llm.base_llm import BaseLLM, ChatMessage
 from libs.reranker.base_reranker import (
     BaseReranker,
     Candidate,
@@ -198,8 +198,9 @@ Return a JSON array of objects with:
             # Build the prompt
             prompt = self._build_prompt(query, candidates)
 
-            # Call LLM
-            response = self._llm.complete(prompt=prompt, max_tokens=4096)
+            # Call LLM using chat method (use dict for compatibility)
+            messages = [{"role": "user", "content": prompt}]
+            response = self._llm.chat(messages=messages)
 
             # Parse the response
             parsed = self._parse_response(response.content, candidates)
