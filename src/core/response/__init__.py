@@ -6,6 +6,11 @@ from core.response.citation_generator import (
     CitationGenerator,
     create_citation_generator,
 )
+from core.response.multimodal_assembler import (
+    ImageContent,
+    MultimodalAssembler,
+    create_multimodal_assembler,
+)
 from core.response.response_builder import (
     MCPToolResponse,
     ResponseBuilder,
@@ -18,6 +23,10 @@ __all__ = [
     "CitationConfig",
     "CitationGenerator",
     "create_citation_generator",
+    # Multimodal
+    "ImageContent",
+    "MultimodalAssembler",
+    "create_multimodal_assembler",
     # Response
     "MCPToolResponse",
     "ResponseBuilder",
