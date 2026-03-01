@@ -1,17 +1,29 @@
 # MCP Server Tools
 
+from mcp_server.tools.list_collections import (
+    ListCollectionsTool,
+    get_tool_definition as get_list_collections_tool_definition,
+    get_tool_instance as get_list_collections_tool_instance,
+    list_collections_handler,
+    register_tool as register_list_collections_tool,
+)
 from mcp_server.tools.query_knowledge_hub import (
     QueryKnowledgeHubTool,
-    get_tool_definition,
-    get_tool_instance,
+    get_tool_definition as get_query_knowledge_hub_tool_definition,
+    get_tool_instance as get_query_knowledge_hub_tool_instance,
     query_knowledge_hub_handler,
-    register_tool,
+    register_tool as register_query_knowledge_hub_tool,
 )
 
 __all__ = [
+    "ListCollectionsTool",
     "QueryKnowledgeHubTool",
-    "get_tool_definition",
-    "get_tool_instance",
+    "get_list_collections_tool_definition",
+    "get_list_collections_tool_instance",
+    "get_query_knowledge_hub_tool_definition",
+    "get_query_knowledge_hub_tool_instance",
+    "list_collections_handler",
     "query_knowledge_hub_handler",
-    "register_tool",
+    "register_list_collections_tool",
+    "register_query_knowledge_hub_tool",
 ]

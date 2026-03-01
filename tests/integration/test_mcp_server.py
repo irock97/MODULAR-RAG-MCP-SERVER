@@ -321,9 +321,9 @@ class TestQueryKnowledgeHubTool:
 
     def test_tool_definition(self):
         """Test tool definition is correct."""
-        from mcp_server.tools import get_tool_definition
+        from mcp_server.tools import get_query_knowledge_hub_tool_definition
 
-        tool_def = get_tool_definition()
+        tool_def = get_query_knowledge_hub_tool_definition()
         assert tool_def["name"] == "query_knowledge_hub"
         assert "query" in tool_def["input_schema"]["properties"]
         assert "top_k" in tool_def["input_schema"]["properties"]

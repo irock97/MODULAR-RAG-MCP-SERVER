@@ -10,11 +10,16 @@ from mcp_server.protocol_handler import (
     get_protocol_handler,
 )
 from mcp_server.tools import (
+    ListCollectionsTool,
     QueryKnowledgeHubTool,
-    get_tool_definition,
-    get_tool_instance,
+    get_list_collections_tool_definition,
+    get_list_collections_tool_instance,
+    get_query_knowledge_hub_tool_definition,
+    get_query_knowledge_hub_tool_instance,
+    list_collections_handler,
     query_knowledge_hub_handler,
-    register_tool,
+    register_list_collections_tool,
+    register_query_knowledge_hub_tool,
 )
 
 __all__ = [
@@ -25,9 +30,14 @@ __all__ = [
     "JSONRPCErrorCodes",
     "create_mcp_server",
     "get_protocol_handler",
+    "ListCollectionsTool",
     "QueryKnowledgeHubTool",
-    "get_tool_definition",
-    "get_tool_instance",
+    "get_list_collections_tool_definition",
+    "get_list_collections_tool_instance",
+    "get_query_knowledge_hub_tool_definition",
+    "get_query_knowledge_hub_tool_instance",
+    "list_collections_handler",
     "query_knowledge_hub_handler",
-    "register_tool",
+    "register_list_collections_tool",
+    "register_query_knowledge_hub_tool",
 ]

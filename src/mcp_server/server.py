@@ -19,7 +19,10 @@ from mcp_server.protocol_handler import (
     create_mcp_server,
     get_protocol_handler,
 )
-from mcp_server.tools import register_tool, get_tool_definition
+from mcp_server.tools import (
+    register_query_knowledge_hub_tool,
+    register_list_collections_tool,
+)
 
 logger = get_logger("mcp_server")
 
@@ -30,8 +33,11 @@ def _register_tools(protocol_handler: ProtocolHandler) -> None:
     Args:
         protocol_handler: ProtocolHandler instance to register tools with
     """
-    # Register query_knowledge_hub tool using the register_tool function
-    register_tool(protocol_handler)
+    # Register query_knowledge_hub tool
+    register_query_knowledge_hub_tool(protocol_handler)
+
+    # Register list_collections tool
+    register_list_collections_tool(protocol_handler)
 
 
 async def run_stdio_server() -> int:
