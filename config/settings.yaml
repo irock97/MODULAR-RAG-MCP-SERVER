@@ -12,7 +12,7 @@ llm:
 #  temperature: 0.0
 #  max_tokens: 4096
   # Provider-specific settings (uncomment as needed)
-  api_key: sk-c692970d40764266a825fbd17945896f  # Use environment variable
+  api_key:   # Use environment variable
   base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
 
 # =============================================================================
